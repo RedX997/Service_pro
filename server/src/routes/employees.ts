@@ -55,4 +55,16 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// Delete employee
+router.delete('/:id', async (req, res) => {
+    try {
+        const employee = await prisma.employee.delete({
+            where: { id: req.params.id },
+        });
+        res.json(employee);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

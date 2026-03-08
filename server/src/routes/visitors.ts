@@ -98,4 +98,16 @@ router.post('/:id/convert', async (req, res) => {
     }
 });
 
+// Delete visitor
+router.delete('/:id', async (req, res) => {
+    try {
+        const visitor = await prisma.visitor.delete({
+            where: { id: req.params.id },
+        });
+        res.json(visitor);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;
