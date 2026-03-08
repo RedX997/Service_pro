@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 
-router.post('/run', async (req, res) => {
+router.get('/run', async (req, res) => {
   try {
     // Check if already seeded
     const existingDepts = await prisma.department.count();
@@ -26,7 +26,7 @@ router.post('/run', async (req, res) => {
           email: 'manager@example.com',
           phone: '555-0001',
           role: 'manager',
-          departmentId: departments[0].id,
+          department: 'Sales',
           status: 'active',
         },
         {
@@ -34,7 +34,7 @@ router.post('/run', async (req, res) => {
           email: 'receptionist@example.com',
           phone: '555-0002',
           role: 'receptionist',
-          departmentId: departments[1].id,
+          department: 'Support',
           status: 'active',
         },
         {
@@ -42,7 +42,7 @@ router.post('/run', async (req, res) => {
           email: 'employee@example.com',
           phone: '555-0003',
           role: 'employee',
-          departmentId: departments[2].id,
+          department: 'Engineering',
           status: 'active',
         },
       ],
