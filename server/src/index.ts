@@ -15,7 +15,15 @@ import messageRoutes from './routes/messages.js';
 import timeEntryRoutes from './routes/time-entries.js';
 import departmentRoutes from './routes/departments.js';
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://servicepro-frontend-one.vercel.app',
+    'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app'
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // Basic health check route
