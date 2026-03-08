@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id               String   @id @default(uuid())
+  name             String
+  email            String
+  phone            String
+  company          String?
+  address          String?
+  status           String   @default("active")
+  services         String[] @default([])
+  assignedEmployee String?
+  lastContact      DateTime?
+  createdAt        DateTime @default(now())
+  messages         Message[]
+  timeEntries      TimeEntry[]
+}
+
+model Employee {
+  id          String   @id @default(uuid())
+  name        String
+  email       String?
+  phone       String?
+  mobile      String?
+  role        String
+  department  String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  timeEntries TimeEntry[]
+  messages    Message[]
+}
+
+model Visitor {
+  id           String    @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  purpose      String
+  hostId       String?
+  checkInTime  DateTime  @default(now())
+  checkOutTime DateTime?
+  status       String    @default("active")
+  notes        String?
+  createdAt    DateTime  @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  senderId   String
+  senderType String   // 'client' | 'employee'
+  clientId   String
+  isRead     Boolean  @default(false)
+  timestamp  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  
+  client     Client   @relation(fields: [clientId], references: [id])
+  employee   Employee? @relation(fields: [senderId], references: [id])
+}
+
+model TimeEntry {
+  id         String    @id @default(uuid())
+  employeeId String
+  clientId   String
+  serviceId  String
+  startTime  DateTime
+  endTime    DateTime?
+  duration   Int?      // in minutes
+  notes      String?
+  createdAt  DateTime  @default(now())
+
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  client     Client    @relation(fields: [clientId], references: [id])
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  employees   Int      @default(0)
+  services    Int      @default(0)
+  activeClients Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

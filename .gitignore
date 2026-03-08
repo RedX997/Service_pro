@@ -1,0 +1,90 @@
+# Dependencies
+node_modules/
+server/node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production builds
+dist/
+build/
+server/dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+server/.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+server/dev.db
+server/prisma/dev.db
+
+# Prisma
+server/prisma/migrations/
+.prisma/
+
+# Build files
+*.tsbuildinfo
+.cache/
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+.tmp/
+
+# Lock files (optional - keep one)
+# Uncomment if you want to exclude lock files
+# package-lock.json
+# yarn.lock
+# pnp.lock
+bun.lockb
+
+# Zip files
+*.zip
+servicepro-build.zip
+
+# Misc
+.vercel
+.netlify
+.output
+.nuxt
+.next
+out/
+
+# Documentation with sensitive info (exclude from GitHub)
+*.md
+!README.md
+# But keep README.md minimal and safe

@@ -1,0 +1,420 @@
+import { useState, useMemo } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Search, Mail, Phone, MoreVertical, Users, Clock, Briefcase, Loader2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { useEmployees, useCreateEmployee } from '@/hooks/useEmployees';
+import { useClients } from '@/hooks/useClients';
+import { apiClient } from '@/lib/api-client';
+
+const departments = [
+  'GST Services',
+  'Income Tax',
+  'Audit',
+  'Tax Consultation',
+  'Company Registration',
+  'Compliance',
+  'Bookkeeping',
+];
+
+const roles = [
+  'Associate',
+  'Senior Associate',
+  'Manager',
+  'Senior Manager',
+  'Partner',
+];
+
+interface EmployeeForm {
+  name: string;
+  email: string;
+  mobile: string;
+  phone: string;
+  department: string;
+  role: string;
+  status: 'active' | 'inactive';
+}
+
+export default function Employees() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { toast } = useToast();
+  
+  // Fetch data from API
+  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
+  const { data: clients = [] } = useClients();
+  const createEmployee = useCreateEmployee();
+
+  // Calculate real client load and billable hours for each employee
+  const employeesWithStats = useMemo(() => {
+    return employees.map(employee => {
+      // Count clients assigned to this employee
+      const clientLoad = clients.filter(
+        client => client.assignedEmployee === employee.id
+      ).length;
+
+      // TODO: Calculate billable hours from time entries
+      // For now, using 0 until time entries API is connected
+      const billableHours = 0;
+
+      return {
+        ...employee,
+        clientLoad,
+        maxLoad: 8, // Default max load
+        billableHours,
+      };
+    });
+  }, [employees, clients]);
+
+  const [employeeForm, setEmployeeForm] = useState<EmployeeForm>({
+    name: '',
+    email: '',
+    mobile: '',
+    phone: '',
+    department: '',
+    role: '',
+    status: 'active',
+  });
+
+  const filteredEmployees = employeesWithStats.filter(employee =>
+    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    employee.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const resetForm = () => {
+    setEmployeeForm({
+      name: '',
+      email: '',
+      mobile: '',
+      phone: '',
+      department: '',
+      role: '',
+      status: 'active',
+    });
+  };
+
+  const handleAddEmployee = async () => {
+    // Validation
+    if (!employeeForm.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Employee name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!employeeForm.role) {
+      toast({
+        title: "Error",
+        description: "Role is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createEmployee.mutateAsync({
+        name: employeeForm.name.trim(),
+        email: employeeForm.email.trim() || null,
+        phone: employeeForm.phone.trim() || null,
+        mobile: employeeForm.mobile.trim() || null,
+        department: employeeForm.department || null,
+        role: employeeForm.role,
+        status: employeeForm.status,
+      } as any);
+
+      resetForm();
+      setIsAddDialogOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Employee added successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (employeesLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Employees</h1>
+            <p className="text-muted-foreground">Manage team members and workload</p>
+          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Employee
+          </Button>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search employees..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredEmployees.map((employee) => (
+            <Card key={employee.id} className="animate-fade-in hover:shadow-card-hover transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                        {employee.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold">{employee.name}</h3>
+                      <p className="text-sm text-muted-foreground">{employee.role}</p>
+                      <Badge 
+                        variant={employee.status === 'active' ? 'secondary' : 'outline'} 
+                        className="mt-1 text-xs"
+                      >
+                        {employee.department}
+                      </Badge>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Briefcase className="h-4 w-4 mr-2" />
+                        Edit Employee
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>View Workload</DropdownMenuItem>
+                      <DropdownMenuItem>Assign Tasks</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5" />
+                    {employee.email}
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5" />
+                    {employee.mobile}
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Users className="h-4 w-4 text-accent" />
+                      <span>Client Load</span>
+                    </div>
+                    <Badge variant={employee.clientLoad >= 7 ? 'destructive' : 'secondary'}>
+                      {employee.clientLoad}/{employee.maxLoad}
+                    </Badge>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        employee.clientLoad >= 7 ? 'bg-destructive' : 'bg-accent'
+                      )}
+                      style={{ 
+                        width: `${Math.round((employee.clientLoad / employee.maxLoad) * 100)}%`
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>This Month</span>
+                    </div>
+                    <span className="font-medium">{employee.billableHours}h billed</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {filteredEmployees.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">No employees found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm ? 'Try adjusting your search terms' : 'Add your first employee to get started'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add Employee Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogDescription>
+              Add a new team member to your organization.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                placeholder="Enter employee name"
+                value={employeeForm.name}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={employeeForm.email}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="mobile">Mobile Number</Label>
+              <Input
+                id="mobile"
+                placeholder="Enter mobile number (optional)"
+                value={employeeForm.mobile}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, mobile: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                placeholder="Enter phone number (optional)"
+                value={employeeForm.phone}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="department">Department</Label>
+              <Select
+                value={employeeForm.department}
+                onValueChange={(value) => setEmployeeForm({ ...employeeForm, department: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={employeeForm.role}
+                onValueChange={(value) => setEmployeeForm({ ...employeeForm, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={employeeForm.status}
+                onValueChange={(value: 'active' | 'inactive') => setEmployeeForm({ ...employeeForm, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetForm();
+                setIsAddDialogOpen(false);
+              }}
+              disabled={createEmployee.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddEmployee} disabled={createEmployee.isPending}>
+              {createEmployee.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Employee
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  );
+}
