@@ -52,7 +52,6 @@ server/dev.db
 server/prisma/dev.db
 
 # Prisma
-server/prisma/migrations/
 .prisma/
 
 # Build files
@@ -88,3 +87,5 @@ out/
 *.md
 !README.md
 # But keep README.md minimal and safe
+
+.vercel
