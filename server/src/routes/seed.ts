@@ -31,12 +31,12 @@ router.get('/run', async (req, res) => {
 
     // Create clients
     const clients = await Promise.all([
-      prisma.client.create({ data: { name: 'ABC Enterprises', email: 'rajesh@abc.com', phone: '+91 98765 43210', company: 'ABC Enterprises', address: 'Mumbai, Maharashtra', status: 'active' } }),
-      prisma.client.create({ data: { name: 'XYZ Solutions Pvt Ltd', email: 'priya@xyz.com', phone: '+91 87654 32109', company: 'XYZ Solutions Pvt Ltd', address: 'Delhi, India', status: 'active' } }),
-      prisma.client.create({ data: { name: 'Patel & Associates', email: 'amit@patel.com', phone: '+91 76543 21098', company: 'Patel & Associates', address: 'Ahmedabad, Gujarat', status: 'active' } }),
-      prisma.client.create({ data: { name: 'Tech Solutions Ltd', email: 'contact@techsolutions.com', phone: '+91 98765 11122', company: 'Tech Solutions Ltd', address: 'Bangalore, Karnataka', status: 'active' } }),
-      prisma.client.create({ data: { name: 'Global Traders', email: 'info@globaltraders.com', phone: '+91 98765 22233', company: 'Global Traders', address: 'Chennai, Tamil Nadu', status: 'active' } }),
-      prisma.client.create({ data: { name: 'Sunrise Enterprises', email: 'contact@sunrise.com', phone: '+91 98765 33344', company: 'Sunrise Enterprises', address: 'Pune, Maharashtra', status: 'active' } }),
+      prisma.client.create({ data: { name: 'ABC Enterprises', email: 'rajesh@abc.com', phone: '+91 98765 43210', company: 'ABC Enterprises', address: 'Mumbai, Maharashtra', status: 'active', services: [] } }),
+      prisma.client.create({ data: { name: 'XYZ Solutions Pvt Ltd', email: 'priya@xyz.com', phone: '+91 87654 32109', company: 'XYZ Solutions Pvt Ltd', address: 'Delhi, India', status: 'active', services: [] } }),
+      prisma.client.create({ data: { name: 'Patel & Associates', email: 'amit@patel.com', phone: '+91 76543 21098', company: 'Patel & Associates', address: 'Ahmedabad, Gujarat', status: 'active', services: [] } }),
+      prisma.client.create({ data: { name: 'Tech Solutions Ltd', email: 'contact@techsolutions.com', phone: '+91 98765 11122', company: 'Tech Solutions Ltd', address: 'Bangalore, Karnataka', status: 'active', services: [] } }),
+      prisma.client.create({ data: { name: 'Global Traders', email: 'info@globaltraders.com', phone: '+91 98765 22233', company: 'Global Traders', address: 'Chennai, Tamil Nadu', status: 'active', services: [] } }),
+      prisma.client.create({ data: { name: 'Sunrise Enterprises', email: 'contact@sunrise.com', phone: '+91 98765 33344', company: 'Sunrise Enterprises', address: 'Pune, Maharashtra', status: 'active', services: [] } }),
     ]);
 
     // Create employees
