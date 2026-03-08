@@ -6,83 +6,63 @@ const router = Router();
 router.get('/run', async (req, res) => {
   try {
     // Check if already seeded
-    const existingDepts = await prisma.department.count();
-    if (existingDepts > 0) {
-      return res.json({ message: 'Database already seeded', departments: existingDepts });
+    const existingClients = await prisma.client.count();
+    if (existingClients > 2) {
+      return res.json({ message: 'Database already has data', clients: existingClients });
     }
 
+    // Clear minimal seed data if exists
+    await prisma.timeEntry.deleteMany();
+    await prisma.message.deleteMany();
+    await prisma.visitor.deleteMany();
+    await prisma.employee.deleteMany();
+    await prisma.client.deleteMany();
+    await prisma.department.deleteMany();
+
     // Create departments
-    const sales = await prisma.department.create({ 
-      data: { name: 'Sales', description: 'Sales team' } 
-    });
-    const support = await prisma.department.create({ 
-      data: { name: 'Support', description: 'Customer support' } 
-    });
-    const engineering = await prisma.department.create({ 
-      data: { name: 'Engineering', description: 'Development team' } 
-    });
-
-    // Create employees one by one
-    await prisma.employee.create({
-      data: {
-        name: 'John Manager',
-        email: 'manager@example.com',
-        phone: '555-0001',
-        role: 'manager',
-        department: 'Sales',
-        status: 'active',
-      },
+    await prisma.department.createMany({
+      data: [
+        { name: 'GST Services', description: 'GST registration, filing, and compliance services', employees: 2, services: 5, activeClients: 10 },
+        { name: 'Income Tax', description: 'Income tax return filing and tax planning', employees: 3, services: 8, activeClients: 15 },
+        { name: 'Company Registration', description: 'Company incorporation and registration services', employees: 2, services: 6, activeClients: 8 },
+        { name: 'Audit Services', description: 'Internal and statutory audit services', employees: 4, services: 7, activeClients: 12 },
+      ]
     });
 
-    await prisma.employee.create({
-      data: {
-        name: 'Sarah Receptionist',
-        email: 'receptionist@example.com',
-        phone: '555-0002',
-        role: 'receptionist',
-        department: 'Support',
-        status: 'active',
-      },
-    });
+    // Create clients
+    const clients = await Promise.all([
+      prisma.client.create({ data: { name: 'ABC Enterprises', email: 'rajesh@abc.com', phone: '+91 98765 43210', company: 'ABC Enterprises', address: 'Mumbai, Maharashtra', status: 'active' } }),
+      prisma.client.create({ data: { name: 'XYZ Solutions Pvt Ltd', email: 'priya@xyz.com', phone: '+91 87654 32109', company: 'XYZ Solutions Pvt Ltd', address: 'Delhi, India', status: 'active' } }),
+      prisma.client.create({ data: { name: 'Patel & Associates', email: 'amit@patel.com', phone: '+91 76543 21098', company: 'Patel & Associates', address: 'Ahmedabad, Gujarat', status: 'active' } }),
+      prisma.client.create({ data: { name: 'Tech Solutions Ltd', email: 'contact@techsolutions.com', phone: '+91 98765 11122', company: 'Tech Solutions Ltd', address: 'Bangalore, Karnataka', status: 'active' } }),
+      prisma.client.create({ data: { name: 'Global Traders', email: 'info@globaltraders.com', phone: '+91 98765 22233', company: 'Global Traders', address: 'Chennai, Tamil Nadu', status: 'active' } }),
+      prisma.client.create({ data: { name: 'Sunrise Enterprises', email: 'contact@sunrise.com', phone: '+91 98765 33344', company: 'Sunrise Enterprises', address: 'Pune, Maharashtra', status: 'active' } }),
+    ]);
 
-    await prisma.employee.create({
-      data: {
-        name: 'Mike Employee',
-        email: 'employee@example.com',
-        phone: '555-0003',
-        role: 'employee',
-        department: 'Engineering',
-        status: 'active',
-      },
-    });
+    // Create employees
+    const employees = await Promise.all([
+      prisma.employee.create({ data: { name: 'Ankit Sharma', email: 'ankit@servicepro.com', phone: '+91 98765 11111', role: 'Senior Associate', department: 'GST Services', status: 'active' } }),
+      prisma.employee.create({ data: { name: 'Priya Mehta', email: 'priya@servicepro.com', phone: '+91 98765 22222', role: 'Manager', department: 'Income Tax', status: 'active' } }),
+      prisma.employee.create({ data: { name: 'Rahul Verma', email: 'rahul@servicepro.com', phone: '+91 98765 33333', role: 'Associate', department: 'Audit', status: 'active' } }),
+      prisma.employee.create({ data: { name: 'Kavita Reddy', email: 'kavita@servicepro.com', phone: '+91 98765 44444', role: 'Associate', department: 'GST Services', status: 'active' } }),
+      prisma.employee.create({ data: { name: 'Suresh Kumar', email: 'suresh@servicepro.com', phone: '+91 98765 55555', role: 'Senior Associate', department: 'Tax Consultation', status: 'active' } }),
+    ]);
 
-    // Create clients one by one
-    await prisma.client.create({
-      data: {
-        name: 'Acme Corp',
-        email: 'contact@acme.com',
-        phone: '555-1001',
-        company: 'Acme Corporation',
-        status: 'active',
-      },
-    });
-
-    await prisma.client.create({
-      data: {
-        name: 'Tech Solutions',
-        email: 'info@techsolutions.com',
-        phone: '555-1002',
-        company: 'Tech Solutions Inc',
-        status: 'active',
-      },
-    });
+    // Create visitors
+    await Promise.all([
+      prisma.visitor.create({ data: { name: 'Rajesh Kumar', email: 'rajesh.k@example.com', phone: '+91 98765 43210', purpose: 'GST Registration Inquiry', hostId: employees[0].id, status: 'active' } }),
+      prisma.visitor.create({ data: { name: 'Priya Sharma', email: 'priya.s@example.com', phone: '+91 87654 32109', purpose: 'ITR Filing', hostId: employees[1].id, status: 'active' } }),
+      prisma.visitor.create({ data: { name: 'Amit Patel', email: 'amit.p@example.com', phone: '+91 76543 21098', purpose: 'Company Registration', hostId: employees[2].id, status: 'active' } }),
+      prisma.visitor.create({ data: { name: 'Sunita Verma', email: 'sunita.v@example.com', phone: '+91 65432 10987', purpose: 'ITR Filing', hostId: employees[3].id, status: 'active' } }),
+    ]);
 
     res.json({ 
-      message: 'Database seeded successfully!',
+      message: 'Database seeded with complete data!',
       created: {
-        departments: 3,
-        employees: 3,
-        clients: 2
+        departments: 4,
+        employees: 5,
+        clients: 6,
+        visitors: 4
       }
     });
   } catch (error) {
