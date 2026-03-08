@@ -21,7 +21,9 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://servicepro-frontend-one.vercel.app',
-    'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app'
+    'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app',
+    'https://servicepro-frontend-884eo6r3s-redx927s-projects.vercel.app',
+    'https://servicepro-frontend-6qjbu9vx9-redx927s-projects.vercel.app'
   ],
   credentials: true
 }));
