@@ -47,29 +47,46 @@ router.get('/active/:employeeId', async (req, res) => {
 // Start timer
 router.post('/start', async (req, res) => {
     try {
+        const { employeeId, clientId, serviceId, notes } = req.body;
+
+        // Validate required fields
+        if (!employeeId || !clientId || !serviceId) {
+            return res.status(400).json({ 
+                error: 'Missing required fields: employeeId, clientId, serviceId' 
+            });
+        }
+
         // Check if already active
         const existing = await prisma.timeEntry.findFirst({
             where: {
-                employeeId: req.body.employeeId,
+                employeeId: employeeId,
                 endTime: null
             }
         });
 
         if (existing) {
-            // Stop the existing one first? Or error?
-            // For now, let's just error
-            return res.status(400).json({ error: 'Timer already active' });
+            return res.status(400).json({ error: 'Timer already active for this employee' });
         }
 
         const timer = await prisma.timeEntry.create({
             data: {
-                ...req.body,
+                employeeId,
+                clientId,
+                serviceId,
                 startTime: new Date(),
-                // ensure duration/endTime are null/undefined
+                notes: notes || null,
+                endTime: null,
+                duration: null,
             },
+            include: {
+                employee: true,
+                client: true,
+            }
         });
+        
         res.json(timer);
     } catch (error: any) {
+        console.error('Start timer error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -108,6 +125,42 @@ router.post('/stop', async (req, res) => {
         res.json(updated);
 
     } catch (error: any) {
+        console.error('Stop timer error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create manual time entry
+router.post('/', async (req, res) => {
+    try {
+        const { employeeId, clientId, serviceId, startTime, endTime, duration, notes } = req.body;
+
+        // Validate required fields
+        if (!employeeId || !clientId || !serviceId) {
+            return res.status(400).json({ 
+                error: 'Missing required fields: employeeId, clientId, serviceId' 
+            });
+        }
+
+        const entry = await prisma.timeEntry.create({
+            data: {
+                employeeId,
+                clientId,
+                serviceId,
+                startTime: startTime ? new Date(startTime) : new Date(),
+                endTime: endTime ? new Date(endTime) : null,
+                duration: duration || null,
+                notes: notes || null,
+            },
+            include: {
+                employee: true,
+                client: true,
+            }
+        });
+        
+        res.json(entry);
+    } catch (error: any) {
+        console.error('Create time entry error:', error);
         res.status(500).json({ error: error.message });
     }
 });
