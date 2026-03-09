@@ -418,12 +418,8 @@ export default function Visitors() {
         </div>
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Loading visitors...</p>
-              <p className="text-xs text-muted-foreground mt-1">First load may take 10-30 seconds</p>
-            </div>
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
           <div className="grid gap-4">
