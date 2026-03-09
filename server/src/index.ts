@@ -17,14 +17,31 @@ import departmentRoutes from './routes/departments.js';
 import seedRoutes from './routes/seed.js';
 
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://servicepro-frontend-one.vercel.app',
-    'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app',
-    'https://servicepro-frontend-884eo6r3s-redx927s-projects.vercel.app',
-    'https://servicepro-frontend-6qjbu9vx9-redx927s-projects.vercel.app'
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://localhost:3000',
+      'https://servicepro-frontend-one.vercel.app',
+      'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app',
+      'https://servicepro-frontend-884eo6r3s-redx927s-projects.vercel.app',
+      'https://servicepro-frontend-6qjbu9vx9-redx927s-projects.vercel.app'
+    ];
+    
+    // Allow any localhost port in development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());

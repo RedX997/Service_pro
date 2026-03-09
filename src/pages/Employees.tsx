@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
+import { FilterBar, FilterTextInput, FilterDropdown } from '@/components/filters';
 import {
   Dialog,
   DialogContent,
@@ -67,6 +68,16 @@ export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
   
+  // Filter states
+  const [filters, setFilters] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: 'all',
+    department: 'all',
+    status: 'all',
+  });
+  
   // Fetch data from API
   const { data: employees = [], isLoading: employeesLoading } = useEmployees();
   const { data: clients = [] } = useClients();
@@ -103,11 +114,66 @@ export default function Employees() {
     status: 'active',
   });
 
-  const filteredEmployees = employeesWithStats.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    employee.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEmployees = useMemo(() => {
+    return employeesWithStats.filter(employee => {
+      // Text search (existing)
+      const matchesSearch = 
+        !searchTerm ||
+        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (employee.department && employee.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        employee.role.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Name filter
+      const matchesName = !filters.name || 
+        employee.name.toLowerCase().includes(filters.name.toLowerCase());
+
+      // Email filter
+      const matchesEmail = !filters.email || 
+        (employee.email && employee.email.toLowerCase().includes(filters.email.toLowerCase()));
+
+      // Phone filter
+      const matchesPhone = !filters.phone || 
+        (employee.mobile && employee.mobile.includes(filters.phone));
+
+      // Role filter
+      const matchesRole = filters.role === 'all' || 
+        employee.role === filters.role;
+
+      // Department filter
+      const matchesDepartment = filters.department === 'all' || 
+        employee.department === filters.department;
+
+      // Status filter
+      const matchesStatus = filters.status === 'all' || 
+        employee.status === filters.status;
+
+      return matchesSearch && matchesName && matchesEmail && matchesPhone && 
+             matchesRole && matchesDepartment && matchesStatus;
+    });
+  }, [employeesWithStats, searchTerm, filters]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.name) count++;
+    if (filters.email) count++;
+    if (filters.phone) count++;
+    if (filters.role !== 'all') count++;
+    if (filters.department !== 'all') count++;
+    if (filters.status !== 'all') count++;
+    return count;
+  }, [filters]);
+
+  const clearAllFilters = () => {
+    setFilters({
+      name: '',
+      email: '',
+      phone: '',
+      role: 'all',
+      department: 'all',
+      status: 'all',
+    });
+  };
 
   const resetForm = () => {
     setEmployeeForm({
@@ -202,6 +268,55 @@ export default function Employees() {
               className="pl-10"
             />
           </div>
+          <FilterBar 
+            activeFilterCount={activeFilterCount} 
+            onClearAll={clearAllFilters}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FilterTextInput
+                label="Name"
+                value={filters.name}
+                onChange={(value) => setFilters({ ...filters, name: value })}
+                placeholder="Search by name..."
+              />
+              <FilterTextInput
+                label="Email"
+                value={filters.email}
+                onChange={(value) => setFilters({ ...filters, email: value })}
+                placeholder="Search by email..."
+              />
+              <FilterTextInput
+                label="Phone"
+                value={filters.phone}
+                onChange={(value) => setFilters({ ...filters, phone: value })}
+                placeholder="Search by phone..."
+              />
+              <FilterDropdown
+                label="Role"
+                value={filters.role}
+                onChange={(value) => setFilters({ ...filters, role: value })}
+                options={roles.map(role => ({ value: role, label: role }))}
+                placeholder="All Roles"
+              />
+              <FilterDropdown
+                label="Department"
+                value={filters.department}
+                onChange={(value) => setFilters({ ...filters, department: value })}
+                options={departments.map(dept => ({ value: dept, label: dept }))}
+                placeholder="All Departments"
+              />
+              <FilterDropdown
+                label="Status"
+                value={filters.status}
+                onChange={(value) => setFilters({ ...filters, status: value })}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                placeholder="All Statuses"
+              />
+            </div>
+          </FilterBar>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

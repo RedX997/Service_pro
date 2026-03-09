@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { FilterBar, FilterTextInput, FilterDropdown, FilterMultiSelect } from '@/components/filters';
 import {
   Dialog,
   DialogContent,
@@ -79,6 +80,16 @@ export default function Clients() {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const { toast } = useToast();
 
+  // Filter states
+  const [filters, setFilters] = useState({
+    company: '',
+    email: '',
+    phone: '',
+    services: [] as string[],
+    assignedEmployee: 'all',
+    status: 'all',
+  });
+
   // React Query hooks
   const { data: clients = [], isLoading, error } = useClients();
   const { data: employees = [] } = useEmployees();
@@ -102,12 +113,69 @@ export default function Clients() {
     status: 'active',
   });
 
-  const filteredClients = clients.filter(client =>
-    client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = useMemo(() => {
+    return clients.filter(client => {
+      // Text search (existing)
+      const matchesSearch = 
+        !searchTerm ||
+        client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Company filter
+      const matchesCompany = !filters.company || 
+        client.company?.toLowerCase().includes(filters.company.toLowerCase()) ||
+        client.name?.toLowerCase().includes(filters.company.toLowerCase());
+
+      // Email filter
+      const matchesEmail = !filters.email || 
+        client.email?.toLowerCase().includes(filters.email.toLowerCase());
+
+      // Phone filter
+      const matchesPhone = !filters.phone || 
+        (client.phone && client.phone.includes(filters.phone)) ||
+        (client.mobile && client.mobile.includes(filters.phone));
+
+      // Services filter (any selected service must be in client's services)
+      const matchesServices = filters.services.length === 0 || 
+        (client.services && filters.services.some(service => client.services?.includes(service)));
+
+      // Assigned Employee filter
+      const matchesEmployee = filters.assignedEmployee === 'all' || 
+        client.assignedEmployee === filters.assignedEmployee;
+
+      // Status filter
+      const matchesStatus = filters.status === 'all' || 
+        client.status === filters.status;
+
+      return matchesSearch && matchesCompany && matchesEmail && matchesPhone && 
+             matchesServices && matchesEmployee && matchesStatus;
+    });
+  }, [clients, searchTerm, filters]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.company) count++;
+    if (filters.email) count++;
+    if (filters.phone) count++;
+    if (filters.services.length > 0) count++;
+    if (filters.assignedEmployee !== 'all') count++;
+    if (filters.status !== 'all') count++;
+    return count;
+  }, [filters]);
+
+  const clearAllFilters = () => {
+    setFilters({
+      company: '',
+      email: '',
+      phone: '',
+      services: [],
+      assignedEmployee: 'all',
+      status: 'all',
+    });
+  };
 
   const resetForm = () => {
     setClientForm({
@@ -209,6 +277,34 @@ export default function Clients() {
   const handleUpdateClient = async () => {
     if (!editingClient) return;
 
+    // Validation
+    if (!clientForm.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Client name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!clientForm.email.trim() || !clientForm.email.includes('@')) {
+      toast({
+        title: "Error",
+        description: "Valid email is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!clientForm.phone.trim()) {
+      toast({
+        title: "Error",
+        description: "Phone number is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const updates: any = {
         name: clientForm.name,
@@ -220,6 +316,8 @@ export default function Clients() {
         services: selectedServices,
         assignedEmployee: clientForm.assignedEmployee || null,
       };
+
+      console.log('Updating client:', editingClient.id, updates);
 
       await updateClientMutation.mutateAsync({
         id: editingClient.id,
@@ -238,7 +336,7 @@ export default function Clients() {
       console.error('Error updating client:', error);
       toast({
         title: "Error",
-        description: "Failed to update client",
+        description: error instanceof Error ? error.message : "Failed to update client",
         variant: "destructive",
       });
     }
@@ -334,6 +432,55 @@ export default function Clients() {
               className="pl-10"
             />
           </div>
+          <FilterBar 
+            activeFilterCount={activeFilterCount} 
+            onClearAll={clearAllFilters}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FilterTextInput
+                label="Company"
+                value={filters.company}
+                onChange={(value) => setFilters({ ...filters, company: value })}
+                placeholder="Search by company..."
+              />
+              <FilterTextInput
+                label="Email"
+                value={filters.email}
+                onChange={(value) => setFilters({ ...filters, email: value })}
+                placeholder="Search by email..."
+              />
+              <FilterTextInput
+                label="Phone"
+                value={filters.phone}
+                onChange={(value) => setFilters({ ...filters, phone: value })}
+                placeholder="Search by phone..."
+              />
+              <FilterDropdown
+                label="Assigned Employee"
+                value={filters.assignedEmployee}
+                onChange={(value) => setFilters({ ...filters, assignedEmployee: value })}
+                options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
+                placeholder="All Employees"
+              />
+              <FilterDropdown
+                label="Status"
+                value={filters.status}
+                onChange={(value) => setFilters({ ...filters, status: value })}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'onboarding', label: 'Onboarding' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                placeholder="All Statuses"
+              />
+            </div>
+            <FilterMultiSelect
+              label="Services"
+              value={filters.services}
+              onChange={(value) => setFilters({ ...filters, services: value })}
+              options={availableServices}
+            />
+          </FilterBar>
         </div>
 
         <div className="bg-card rounded-xl border shadow-card overflow-hidden">

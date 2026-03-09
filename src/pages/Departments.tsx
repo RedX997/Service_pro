@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FilterBar, FilterTextInput, FilterNumberRange } from '@/components/filters';
 import {
   Dialog,
   DialogContent,
@@ -28,12 +29,50 @@ export default function Departments() {
     description: '',
   });
 
+  // Filter states
+  const [filters, setFilters] = useState({
+    name: '',
+    employeeCountMin: '' as number | '',
+    employeeCountMax: '' as number | '',
+  });
+
   const { departments, loading, error, createDepartment, updateDepartment, deleteDepartment } = useDepartments();
   const { toast } = useToast();
 
-  const filteredDepartments = departments.filter(dept =>
-    dept.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDepartments = useMemo(() => {
+    return departments.filter(dept => {
+      // Text search (existing)
+      const matchesSearch = !searchTerm || dept.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Name filter
+      const matchesName = !filters.name || 
+        dept.name.toLowerCase().includes(filters.name.toLowerCase());
+
+      // Employee count range filter
+      const matchesEmployeeCount = 
+        (filters.employeeCountMin === '' || dept.employees >= filters.employeeCountMin) &&
+        (filters.employeeCountMax === '' || dept.employees <= filters.employeeCountMax);
+
+      return matchesSearch && matchesName && matchesEmployeeCount;
+    });
+  }, [departments, searchTerm, filters]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.name) count++;
+    if (filters.employeeCountMin !== '') count++;
+    if (filters.employeeCountMax !== '') count++;
+    return count;
+  }, [filters]);
+
+  const clearAllFilters = () => {
+    setFilters({
+      name: '',
+      employeeCountMin: '',
+      employeeCountMax: '',
+    });
+  };
 
   const handleSubmit = async () => {
     try {
@@ -180,6 +219,28 @@ export default function Departments() {
               className="pl-10"
             />
           </div>
+          <FilterBar 
+            activeFilterCount={activeFilterCount} 
+            onClearAll={clearAllFilters}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FilterTextInput
+                label="Department Name"
+                value={filters.name}
+                onChange={(value) => setFilters({ ...filters, name: value })}
+                placeholder="Search by name..."
+              />
+              <FilterNumberRange
+                label="Employee Count"
+                min={filters.employeeCountMin}
+                max={filters.employeeCountMax}
+                onMinChange={(value) => setFilters({ ...filters, employeeCountMin: value })}
+                onMaxChange={(value) => setFilters({ ...filters, employeeCountMax: value })}
+                placeholderMin="Min employees"
+                placeholderMax="Max employees"
+              />
+            </div>
+          </FilterBar>
         </div>
 
         <div className="grid gap-6">

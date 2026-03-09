@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { FilterBar, FilterTextInput, FilterDropdown } from '@/components/filters';
 import {
   Dialog,
   DialogContent,
@@ -102,6 +103,15 @@ export default function Visitors() {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const { toast } = useToast();
 
+  // Filter states
+  const [filters, setFilters] = useState({
+    name: '',
+    phone: '',
+    purpose: '',
+    status: 'all',
+    assignedTo: 'all',
+  });
+
   // React Query hooks
   const { data: visitors = [], isLoading, error } = useVisitors();
   const createVisitorMutation = useCreateVisitor();
@@ -127,11 +137,63 @@ export default function Visitors() {
     assignedEmployee: '',
   });
 
-  const filteredVisitors = visitors.filter(visitor =>
-    visitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    visitor.mobile.includes(searchTerm) ||
-    visitor.purpose.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVisitors = useMemo(() => {
+    return visitors.filter(visitor => {
+      // Text search (existing)
+      const matchesSearch = 
+        !searchTerm ||
+        visitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (visitor.mobile && visitor.mobile.includes(searchTerm)) ||
+        (visitor.phone && visitor.phone.includes(searchTerm)) ||
+        visitor.purpose.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Name filter
+      const matchesName = !filters.name || 
+        visitor.name.toLowerCase().includes(filters.name.toLowerCase());
+
+      // Phone filter
+      const matchesPhone = !filters.phone || 
+        (visitor.mobile && visitor.mobile.includes(filters.phone)) ||
+        (visitor.phone && visitor.phone.includes(filters.phone));
+
+      // Purpose filter
+      const matchesPurpose = !filters.purpose || 
+        visitor.purpose.toLowerCase().includes(filters.purpose.toLowerCase());
+
+      // Status filter
+      const matchesStatus = filters.status === 'all' || 
+        visitor.status === filters.status;
+
+      // Assigned To filter
+      const matchesAssignedTo = filters.assignedTo === 'all' || 
+        visitor.hostId === filters.assignedTo ||
+        visitor.assignedTo === filters.assignedTo;
+
+      return matchesSearch && matchesName && matchesPhone && matchesPurpose && 
+             matchesStatus && matchesAssignedTo;
+    });
+  }, [visitors, searchTerm, filters]);
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.name) count++;
+    if (filters.phone) count++;
+    if (filters.purpose) count++;
+    if (filters.status !== 'all') count++;
+    if (filters.assignedTo !== 'all') count++;
+    return count;
+  }, [filters]);
+
+  const clearAllFilters = () => {
+    setFilters({
+      name: '',
+      phone: '',
+      purpose: '',
+      status: 'all',
+      assignedTo: 'all',
+    });
+  };
 
   const resetVisitorForm = () => {
     setVisitorForm({
@@ -415,6 +477,50 @@ export default function Visitors() {
               className="pl-10"
             />
           </div>
+          <FilterBar 
+            activeFilterCount={activeFilterCount} 
+            onClearAll={clearAllFilters}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FilterTextInput
+                label="Name"
+                value={filters.name}
+                onChange={(value) => setFilters({ ...filters, name: value })}
+                placeholder="Search by name..."
+              />
+              <FilterTextInput
+                label="Phone"
+                value={filters.phone}
+                onChange={(value) => setFilters({ ...filters, phone: value })}
+                placeholder="Search by phone..."
+              />
+              <FilterTextInput
+                label="Purpose"
+                value={filters.purpose}
+                onChange={(value) => setFilters({ ...filters, purpose: value })}
+                placeholder="Search by purpose..."
+              />
+              <FilterDropdown
+                label="Status"
+                value={filters.status}
+                onChange={(value) => setFilters({ ...filters, status: value })}
+                options={[
+                  { value: 'waiting', label: 'Waiting' },
+                  { value: 'in-meeting', label: 'In Meeting' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'converted', label: 'Converted' },
+                ]}
+                placeholder="All Statuses"
+              />
+              <FilterDropdown
+                label="Assigned To"
+                value={filters.assignedTo}
+                onChange={(value) => setFilters({ ...filters, assignedTo: value })}
+                options={employees.map(emp => ({ value: emp.name, label: emp.name }))}
+                placeholder="All Employees"
+              />
+            </div>
+          </FilterBar>
         </div>
 
         {isLoading ? (

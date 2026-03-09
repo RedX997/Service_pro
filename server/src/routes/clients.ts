@@ -30,12 +30,17 @@ router.post('/', async (req, res) => {
 // Update client
 router.patch('/:id', async (req, res) => {
     try {
+        console.log('Updating client:', req.params.id, req.body);
+        
         const client = await prisma.client.update({
             where: { id: req.params.id },
             data: req.body,
         });
+        
+        console.log('Client updated successfully:', client.id);
         res.json(client);
     } catch (error: any) {
+        console.error('Error updating client:', error);
         res.status(500).json({ error: error.message });
     }
 });
