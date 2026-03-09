@@ -9,7 +9,25 @@ router.get('/', async (req, res) => {
         const departments = await prisma.department.findMany({
             orderBy: { createdAt: 'desc' },
         });
-        res.json(departments);
+
+        // Count actual employees for each department
+        const departmentsWithCounts = await Promise.all(
+            departments.map(async (dept) => {
+                const employeeCount = await prisma.employee.count({
+                    where: { 
+                        department: dept.name,
+                        status: 'active'
+                    }
+                });
+
+                return {
+                    ...dept,
+                    employees: employeeCount
+                };
+            })
+        );
+
+        res.json(departmentsWithCounts);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
