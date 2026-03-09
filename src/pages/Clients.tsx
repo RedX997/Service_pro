@@ -338,8 +338,12 @@ export default function Clients() {
 
         <div className="bg-card rounded-xl border shadow-card overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Loading clients...</p>
+                <p className="text-xs text-muted-foreground mt-1">First load may take 10-30 seconds</p>
+              </div>
             </div>
           ) : (
             <Table>
