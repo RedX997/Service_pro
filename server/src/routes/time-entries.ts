@@ -47,13 +47,36 @@ router.get('/active/:employeeId', async (req, res) => {
 // Start timer
 router.post('/start', async (req, res) => {
     try {
+        console.log('Start timer request body:', req.body);
+        
         const { employeeId, clientId, serviceId, notes } = req.body;
 
         // Validate required fields
         if (!employeeId || !clientId || !serviceId) {
+            console.error('Missing required fields:', { employeeId, clientId, serviceId });
             return res.status(400).json({ 
                 error: 'Missing required fields: employeeId, clientId, serviceId' 
             });
+        }
+
+        // Check if employee exists
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId }
+        });
+        
+        if (!employee) {
+            console.error('Employee not found:', employeeId);
+            return res.status(404).json({ error: 'Employee not found' });
+        }
+
+        // Check if client exists
+        const client = await prisma.client.findUnique({
+            where: { id: clientId }
+        });
+        
+        if (!client) {
+            console.error('Client not found:', clientId);
+            return res.status(404).json({ error: 'Client not found' });
         }
 
         // Check if already active
@@ -65,6 +88,7 @@ router.post('/start', async (req, res) => {
         });
 
         if (existing) {
+            console.log('Timer already active for employee:', employeeId);
             return res.status(400).json({ error: 'Timer already active for this employee' });
         }
 
@@ -84,10 +108,11 @@ router.post('/start', async (req, res) => {
             }
         });
         
+        console.log('Timer started successfully:', timer.id);
         res.json(timer);
     } catch (error: any) {
         console.error('Start timer error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, details: error.toString() });
     }
 });
 

@@ -141,9 +141,25 @@ export default function TimeTracking() {
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      console.log('Starting timer with:', {
+        employeeId: user.id,
+        clientId: selectedClient,
+        serviceId: selectedService,
+        notes: timerNotes,
+      });
+
       await startTimerMutation.mutateAsync({
-        employeeId: user?.id || '',
+        employeeId: user.id,
         clientId: selectedClient,
         serviceId: selectedService,
         notes: timerNotes,
@@ -154,9 +170,10 @@ export default function TimeTracking() {
         description: "Timer started successfully",
       });
     } catch (error) {
+      console.error('Start timer error:', error);
       toast({
         title: "Error",
-        description: "Failed to start timer",
+        description: error instanceof Error ? error.message : "Failed to start timer",
         variant: "destructive",
       });
     }
