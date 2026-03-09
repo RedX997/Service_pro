@@ -28,11 +28,18 @@ app.use(cors({
       'https://servicepro-frontend-one.vercel.app',
       'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app',
       'https://servicepro-frontend-884eo6r3s-redx927s-projects.vercel.app',
-      'https://servicepro-frontend-6qjbu9vx9-redx927s-projects.vercel.app'
+      'https://servicepro-frontend-6qjbu9vx9-redx927s-projects.vercel.app',
+      'https://servicepro-frontend-1totp2tom-redx927s-projects.vercel.app',
+      'https://servicepro-frontend-136q1vfa2-redx927s-projects.vercel.app'
     ];
     
     // Allow any localhost port in development
     if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    
+    // Allow any Vercel preview deployment
+    if (origin.includes('vercel.app')) {
       return callback(null, true);
     }
     
