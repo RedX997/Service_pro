@@ -15,6 +15,7 @@ import messageRoutes from './routes/messages.js';
 import timeEntryRoutes from './routes/time-entries.js';
 import departmentRoutes from './routes/departments.js';
 import seedRoutes from './routes/seed.js';
+import taskRoutes from './routes/tasks.js';
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -66,6 +67,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/time-entries', timeEntryRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/seed', seedRoutes);
+app.use('/api/tasks', taskRoutes);
 
 app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);

@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { FilterBar, FilterTextInput, FilterDropdown } from '@/components/filters';
+import { WorkloadDialog } from '@/components/dialogs/WorkloadDialog';
+import { AssignTaskDialog } from '@/components/dialogs/AssignTaskDialog';
 import {
   Dialog,
   DialogContent,
@@ -78,8 +80,11 @@ export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isWorkloadDialogOpen, setIsWorkloadDialogOpen] = useState(false);
+  const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   
   // Filter states
@@ -248,6 +253,16 @@ export default function Employees() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleViewWorkload = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsWorkloadDialogOpen(true);
+  };
+
+  const handleAssignTask = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsAssignTaskDialogOpen(true);
   };
 
   const handleEditEmployee = (employee: Employee) => {
@@ -462,11 +477,13 @@ export default function Employees() {
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Employee
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewWorkload(employee)}>
                         <Briefcase className="h-4 w-4 mr-2" />
                         View Workload
                       </DropdownMenuItem>
-                      <DropdownMenuItem>Assign Tasks</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAssignTask(employee)}>
+                        Assign Tasks
+                      </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => handleDeleteEmployee(employee)}
                         className="text-destructive"
@@ -792,6 +809,20 @@ export default function Employees() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Workload Dialog */}
+      <WorkloadDialog
+        employee={selectedEmployee}
+        open={isWorkloadDialogOpen}
+        onOpenChange={setIsWorkloadDialogOpen}
+      />
+
+      {/* Assign Task Dialog */}
+      <AssignTaskDialog
+        employee={selectedEmployee}
+        open={isAssignTaskDialogOpen}
+        onOpenChange={setIsAssignTaskDialogOpen}
+      />
     </DashboardLayout>
   );
 }

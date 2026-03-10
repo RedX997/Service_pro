@@ -24,6 +24,7 @@ model Client {
   createdAt        DateTime @default(now())
   messages         Message[]
   timeEntries      TimeEntry[]
+  tasks            Task[]
 }
 
 model Employee {
@@ -38,6 +39,8 @@ model Employee {
   createdAt   DateTime @default(now())
   timeEntries TimeEntry[]
   messages    Message[]
+  assignedTasks Task[] @relation("AssignedTasks")
+  createdTasks  Task[] @relation("CreatedTasks")
 }
 
 model Visitor {
@@ -92,4 +95,23 @@ model Department {
   activeClients Int    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  priority    String   @default("medium") // low, medium, high, urgent
+  status      String   @default("pending") // pending, in_progress, completed, cancelled
+  assignedTo  String
+  assignedBy  String?
+  clientId    String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignee    Employee @relation("AssignedTasks", fields: [assignedTo], references: [id])
+  assigner    Employee? @relation("CreatedTasks", fields: [assignedBy], references: [id])
+  client      Client?  @relation(fields: [clientId], references: [id])
 }
