@@ -16,13 +16,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Mail, Phone, MoreVertical, Users, Clock, Briefcase, Loader2 } from 'lucide-react';
+import { Plus, Search, Mail, Phone, MoreVertical, Users, Clock, Briefcase, Loader2, Edit, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +41,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useEmployees, useCreateEmployee } from '@/hooks/useEmployees';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee } from '@/hooks/useEmployees';
 import { useClients } from '@/hooks/useClients';
-import { apiClient } from '@/lib/api-client';
+import { Employee } from '@/types';
 
 const departments = [
   'GST Services',
@@ -66,6 +76,10 @@ interface EmployeeForm {
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   
   // Filter states
@@ -82,6 +96,8 @@ export default function Employees() {
   const { data: employees = [], isLoading: employeesLoading } = useEmployees();
   const { data: clients = [] } = useClients();
   const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deleteEmployee = useDeleteEmployee();
 
   // Calculate real client load and billable hours for each employee
   const employeesWithStats = useMemo(() => {
@@ -234,6 +250,100 @@ export default function Employees() {
     }
   };
 
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEmployeeForm({
+      name: employee.name,
+      email: employee.email || '',
+      mobile: employee.mobile || '',
+      phone: employee.phone || '',
+      department: employee.department || '',
+      role: employee.role,
+      status: employee.status,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!editingEmployee) return;
+
+    // Validation
+    if (!employeeForm.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Employee name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!employeeForm.role) {
+      toast({
+        title: "Error",
+        description: "Role is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await updateEmployee.mutateAsync({
+        id: editingEmployee.id,
+        updates: {
+          name: employeeForm.name.trim(),
+          email: employeeForm.email.trim() || null,
+          phone: employeeForm.phone.trim() || null,
+          mobile: employeeForm.mobile.trim() || null,
+          department: employeeForm.department || null,
+          role: employeeForm.role,
+          status: employeeForm.status,
+        },
+      });
+
+      resetForm();
+      setIsEditDialogOpen(false);
+      setEditingEmployee(null);
+      
+      toast({
+        title: "Success",
+        description: "Employee updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteEmployee = (employee: Employee) => {
+    setDeletingEmployee(employee);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteEmployee = async () => {
+    if (!deletingEmployee) return;
+
+    try {
+      await deleteEmployee.mutateAsync(deletingEmployee.id);
+      
+      setIsDeleteDialogOpen(false);
+      setDeletingEmployee(null);
+      
+      toast({
+        title: "Success",
+        description: "Employee deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete employee",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (employeesLoading) {
     return (
       <DashboardLayout>
@@ -348,12 +458,22 @@ export default function Employees() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Briefcase className="h-4 w-4 mr-2" />
+                      <DropdownMenuItem onClick={() => handleEditEmployee(employee)}>
+                        <Edit className="h-4 w-4 mr-2" />
                         Edit Employee
                       </DropdownMenuItem>
-                      <DropdownMenuItem>View Workload</DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Briefcase className="h-4 w-4 mr-2" />
+                        View Workload
+                      </DropdownMenuItem>
                       <DropdownMenuItem>Assign Tasks</DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteEmployee(employee)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Employee
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -530,6 +650,148 @@ export default function Employees() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Employee Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Employee</DialogTitle>
+            <DialogDescription>
+              Update employee information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input
+                id="edit-name"
+                placeholder="Enter employee name"
+                value={employeeForm.name}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="Enter email address"
+                value={employeeForm.email}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-mobile">Mobile Number</Label>
+              <Input
+                id="edit-mobile"
+                placeholder="Enter mobile number"
+                value={employeeForm.mobile}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, mobile: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <Input
+                id="edit-phone"
+                placeholder="Enter phone number"
+                value={employeeForm.phone}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-department">Department</Label>
+              <Select
+                value={employeeForm.department}
+                onValueChange={(value) => setEmployeeForm({ ...employeeForm, department: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <Select
+                value={employeeForm.role}
+                onValueChange={(value) => setEmployeeForm({ ...employeeForm, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select
+                value={employeeForm.status}
+                onValueChange={(value: 'active' | 'inactive') => setEmployeeForm({ ...employeeForm, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetForm();
+                setIsEditDialogOpen(false);
+                setEditingEmployee(null);
+              }}
+              disabled={updateEmployee.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateEmployee} disabled={updateEmployee.isPending}>
+              {updateEmployee.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Employee
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Employee Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {deletingEmployee?.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteEmployee}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteEmployee.isPending}
+            >
+              {deleteEmployee.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
