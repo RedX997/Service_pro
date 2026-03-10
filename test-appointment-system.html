@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment System Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 300px; }
+        .client-list { background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .client-item { padding: 5px; border-bottom: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Appointment System Test</h1>
+    <p>Testing the complete appointment booking system</p>
+    
+    <button onclick="testFullSystem()">🚀 Test Complete System</button>
+    <button onclick="testClients()">👥 Test Clients API</button>
+    <button onclick="testEmployees()">👨‍💼 Test Employees API</button>
+    <button onclick="testAppointments()">📅 Test Appointments API</button>
+    <button onclick="testCreateAppointment()">➕ Test Create Appointment</button>
+    <button onclick="clearResults()">🧹 Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const PRODUCTION_API = 'https://servicepro-backend.onrender.com/api';
+        
+        function addResult(message, type = 'loading') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            return div;
+        }
+        
+        function updateResult(element, message, type) {
+            element.className = `test-result ${type}`;
+            element.innerHTML = message;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testEndpoint(endpoint, label) {
+            const result = addResult(`Testing ${label}...`, 'loading');
+            
+            try {
+                const response = await fetch(`${PRODUCTION_API}${endpoint}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = Array.isArray(data) ? data.length : 'N/A';
+                    updateResult(result, `✅ ${label} - Success: Found ${count} items<br><pre>${JSON.stringify(data, null, 2).substring(0, 1000)}${JSON.stringify(data, null, 2).length > 1000 ? '...' : ''}</pre>`, 'success');
+                    return data;
+                } else {
+                    const errorText = await response.text();
+                    updateResult(result, `❌ ${label} - Failed: ${response.status} ${response.statusText}<br><pre>${errorText}</pre>`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                updateResult(result, `❌ ${label} - Connection failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function testClients() {
+            const clients = await testEndpoint('/clients', 'Clients API');
+            if (clients && clients.length > 0) {
+                const result = addResult('', 'success');
+                let clientList = '<h4>📋 Available Clients for Dropdown:</h4><div class="client-list">';
+                clients.forEach(client => {
+                    clientList += `<div class="client-item"><strong>${client.name}</strong> (${client.company || 'No company'}) - ${client.email}</div>`;
+                });
+                clientList += '</div>';
+                updateResult(result, clientList, 'success');
+            }
+            return clients;
+        }
+        
+        async function testEmployees() {
+            return await testEndpoint('/employees', 'Employees API');
+        }
+        
+        async function testAppointments() {
+            return await testEndpoint('/appointments', 'Appointments API');
+        }
+        
+        async function testCreateAppointment() {
+            const result = addResult('Testing appointment creation...', 'loading');
+            
+            try {
+                // First get clients and employees
+                const clients = await fetch(`${PRODUCTION_API}/clients`).then(r => r.json());
+                const employees = await fetch(`${PRODUCTION_API}/employees`).then(r => r.json());
+                
+                if (!clients.length || !employees.length) {
+                    updateResult(result, '❌ Cannot test appointment creation - no clients or employees found', 'error');
+                    return;
+                }
+                
+                // Create a test appointment
+                const appointmentData = {
+                    clientId: clients[0].id,
+                    contactPerson: 'Test Contact Person',
+                    date: new Date().toISOString().split('T')[0], // Today
+                    time: '14:30',
+                    duration: '1h',
+                    type: 'in-person',
+                    purpose: 'Test appointment from API test',
+                    assignedTo: employees[0].id,
+                    notes: 'This is a test appointment created via API test'
+                };
+                
+                const response = await fetch(`${PRODUCTION_API}/appointments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(appointmentData)
+                });
+                
+                if (response.ok) {
+                    const appointment = await response.json();
+                    updateResult(result, `✅ Appointment created successfully!<br><pre>${JSON.stringify(appointment, null, 2)}</pre>`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    updateResult(result, `❌ Failed to create appointment: ${response.status}<br><pre>${errorText}</pre>`, 'error');
+                }
+            } catch (error) {
+                updateResult(result, `❌ Error creating appointment: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testFullSystem() {
+            clearResults();
+            addResult('🚀 Starting complete system test...', 'loading');
+            
+            // Test all endpoints
+            const clients = await testClients();
+            const employees = await testEmployees();
+            const appointments = await testAppointments();
+            
+            // Summary
+            const summary = addResult('', 'success');
+            let summaryText = '<h3>📊 System Status Summary:</h3>';
+            summaryText += `<p>✅ Clients: ${clients ? clients.length : 0} available</p>`;
+            summaryText += `<p>✅ Employees: ${employees ? employees.length : 0} available</p>`;
+            summaryText += `<p>✅ Appointments: ${appointments ? appointments.length : 0} existing</p>`;
+            
+            if (clients && clients.length > 0 && employees && employees.length > 0) {
+                summaryText += '<p>🎉 <strong>System is ready for appointment booking!</strong></p>';
+                summaryText += '<p>The client dropdown should show the following clients:</p>';
+                summaryText += '<ul>';
+                clients.forEach(client => {
+                    summaryText += `<li><strong>${client.name}</strong> (${client.company || 'No company'})</li>`;
+                });
+                summaryText += '</ul>';
+            } else {
+                summaryText += '<p>⚠️ System needs data seeding</p>';
+            }
+            
+            updateResult(summary, summaryText, 'success');
+        }
+        
+        // Auto-run full test on page load
+        window.onload = () => {
+            testFullSystem();
+        };
+    </script>
+</body>
+</html>
