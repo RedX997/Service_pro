@@ -18,11 +18,19 @@ router.get('/', async (req, res) => {
 // Create client
 router.post('/', async (req, res) => {
     try {
+        console.log('Creating client with data:', req.body);
+        console.log('assignedEmployee field:', req.body.assignedEmployee);
+        console.log('services field:', req.body.services);
+        
         const client = await prisma.client.create({
             data: req.body,
         });
+        
+        console.log('Client created successfully:', client);
+        console.log('Created client assignedEmployee:', client.assignedEmployee);
         res.json(client);
     } catch (error: any) {
+        console.error('Error creating client:', error);
         res.status(500).json({ error: error.message });
     }
 });

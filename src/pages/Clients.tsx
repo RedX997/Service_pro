@@ -237,7 +237,14 @@ export default function Clients() {
         company: clientForm.company || '',
         address: clientForm.address || '',
         status: clientForm.status || 'active',
+        services: selectedServices,
+        assignedEmployee: clientForm.assignedEmployee || null,
       };
+
+      console.log('Creating client with data:', clientData);
+      console.log('Selected services:', selectedServices);
+      console.log('Form assignedEmployee:', clientForm.assignedEmployee);
+      console.log('Available employees:', employees);
 
       await createClientMutation.mutateAsync(clientData);
       

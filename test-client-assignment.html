@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Client Assignment</title>
+</head>
+<body>
+    <h1>Client Assignment Test</h1>
+    <p>Testing client assignment functionality...</p>
+    
+    <script>
+        // Test the API directly
+        async function testClientAssignment() {
+            try {
+                // Get employees first
+                const employeesResponse = await fetch('http://localhost:3000/api/employees');
+                const employees = await employeesResponse.json();
+                console.log('Employees:', employees);
+                
+                // Get clients
+                const clientsResponse = await fetch('http://localhost:3000/api/clients');
+                const clients = await clientsResponse.json();
+                console.log('Clients:', clients);
+                
+                // Find our test client
+                const testClient = clients.find(c => c.name === 'Test Client Assignment');
+                if (testClient) {
+                    console.log('Test client found:', testClient);
+                    console.log('Assigned employee ID:', testClient.assignedEmployee);
+                    
+                    // Find the employee
+                    const assignedEmployee = employees.find(emp => emp.id === testClient.assignedEmployee);
+                    console.log('Assigned employee:', assignedEmployee);
+                    
+                    document.body.innerHTML += `
+                        <h2>Test Results:</h2>
+                        <p><strong>Client:</strong> ${testClient.name}</p>
+                        <p><strong>Assigned Employee ID:</strong> ${testClient.assignedEmployee}</p>
+                        <p><strong>Assigned Employee Name:</strong> ${assignedEmployee ? assignedEmployee.name : 'Not found'}</p>
+                        <p><strong>Status:</strong> ${assignedEmployee ? 'SUCCESS' : 'FAILED'}</p>
+                    `;
+                } else {
+                    document.body.innerHTML += '<p>Test client not found</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.body.innerHTML += `<p>Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Run test when page loads
+        testClientAssignment();
+    </script>
+</body>
+</html>
