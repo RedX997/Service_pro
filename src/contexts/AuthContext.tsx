@@ -14,21 +14,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Demo users for different roles - using real employee IDs from database
 const demoUsers: Record<UserRole, User> = {
   super_admin: {
-    id: 'fcd0aebb-b7b3-41e4-8b8b-f65c6841dd4f', // shyaam (Partner)
+    id: '26830838-63af-4dab-b352-ef9181944550', // Rohit Mehera (Senior Manager)
     name: 'Admin User',
     email: 'admin@servicepro.com',
     role: 'super_admin',
     avatar: undefined,
   },
   manager: {
-    id: 'ad10385f-5277-4a20-a64b-c3abdc41b6f1', // Priya Mehta (Manager)
+    id: '26830838-63af-4dab-b352-ef9181944550', // Rohit Mehera (Senior Manager)
     name: 'Sarah Manager',
     email: 'manager@servicepro.com',
     role: 'manager',
-    department: 'Income Tax',
+    department: 'Audit',
   },
   receptionist: {
-    id: '503ee07f-1153-4804-bc69-4fcbf7dfd379', // Ankit Sharma (Senior Associate)
+    id: '26830838-63af-4dab-b352-ef9181944550', // Rohit Mehera (Senior Manager)
     name: 'Mike Reception',
     email: 'reception@servicepro.com',
     role: 'receptionist',
