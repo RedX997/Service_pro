@@ -14,6 +14,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Get employee ID from environment variable (different for local vs production)
 const DEMO_EMPLOYEE_ID = import.meta.env.VITE_DEMO_EMPLOYEE_ID || '26830838-63af-4dab-b352-ef9181944550';
 
+// Debug: Log the employee ID being used
+console.log('🔍 DEMO_EMPLOYEE_ID:', DEMO_EMPLOYEE_ID);
+console.log('🔍 Environment:', import.meta.env.MODE);
+console.log('🔍 All env vars:', import.meta.env);
+
 // Demo users for different roles - using environment-specific employee IDs
 const demoUsers: Record<UserRole, User> = {
   super_admin: {
