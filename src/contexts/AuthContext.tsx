@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
 
 interface AuthContextType {
@@ -11,16 +11,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Get employee ID from environment variable (different for local vs production)
-// HARDCODED FIX: Always use production ID for now
-const DEMO_EMPLOYEE_ID = 'ed6bd312-47e1-4ab5-9585-2c73c63533b7'; // Production: Priya Mehta
+// Will be set dynamically from the first employee in database
+let DEMO_EMPLOYEE_ID = 'loading...';
 
-// Debug: Log the employee ID being used
-console.log('🔍 DEMO_EMPLOYEE_ID:', DEMO_EMPLOYEE_ID);
-console.log('🔍 Environment:', import.meta.env.MODE);
-console.log('🔍 API Base URL:', import.meta.env.VITE_API_BASE_URL);
-
-// Demo users for different roles - using environment-specific employee IDs
+// Demo users for different roles
 const demoUsers: Record<UserRole, User> = {
   super_admin: {
     id: DEMO_EMPLOYEE_ID,
@@ -46,6 +40,33 @@ const demoUsers: Record<UserRole, User> = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+
+  // Fetch first employee ID on mount
+  useEffect(() => {
+    const fetchEmployeeId = async () => {
+      try {
+        const response = await fetch('/employees');
+        const employees = await response.json();
+        
+        if (employees && employees.length > 0) {
+          DEMO_EMPLOYEE_ID = employees[0].id;
+          
+          // Update all demo users with the real employee ID
+          demoUsers.super_admin.id = DEMO_EMPLOYEE_ID;
+          demoUsers.manager.id = DEMO_EMPLOYEE_ID;
+          demoUsers.receptionist.id = DEMO_EMPLOYEE_ID;
+          
+          console.log('✅ Using employee:', employees[0].name, '(ID:', DEMO_EMPLOYEE_ID, ')');
+        } else {
+          console.error('❌ No employees found in database');
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch employee ID:', error);
+      }
+    };
+    
+    fetchEmployeeId();
+  }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     // Demo login - check email suffix to determine role
