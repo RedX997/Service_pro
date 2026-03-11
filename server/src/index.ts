@@ -56,7 +56,7 @@ app.use(express.json());
 
 // Basic health check route
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', version: '1.0.1', timestamp: new Date().toISOString() });
 });
 
 // API Routes
