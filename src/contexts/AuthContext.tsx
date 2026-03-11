@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
+import { apiClient } from '@/lib/api-client';
 
 interface AuthContextType {
   user: User | null;
@@ -45,8 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchEmployeeId = async () => {
       try {
-        const response = await fetch('/employees');
-        const employees = await response.json();
+        const employees = await apiClient.get<any[]>('/employees');
         
         if (employees && employees.length > 0) {
           DEMO_EMPLOYEE_ID = employees[0].id;
