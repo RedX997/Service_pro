@@ -12,15 +12,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Get employee ID from environment variable (different for local vs production)
-// Fallback: Use production ID if environment variable is not set and API URL is production
-const isProduction = import.meta.env.VITE_API_BASE_URL?.includes('onrender.com');
-const DEMO_EMPLOYEE_ID = import.meta.env.VITE_DEMO_EMPLOYEE_ID || 
-  (isProduction ? 'ed6bd312-47e1-4ab5-9585-2c73c63533b7' : '26830838-63af-4dab-b352-ef9181944550');
+// HARDCODED FIX: Always use production ID for now
+const DEMO_EMPLOYEE_ID = 'ed6bd312-47e1-4ab5-9585-2c73c63533b7'; // Production: Priya Mehta
 
 // Debug: Log the employee ID being used
 console.log('🔍 DEMO_EMPLOYEE_ID:', DEMO_EMPLOYEE_ID);
 console.log('🔍 Environment:', import.meta.env.MODE);
-console.log('🔍 Is Production:', isProduction);
 console.log('🔍 API Base URL:', import.meta.env.VITE_API_BASE_URL);
 
 // Demo users for different roles - using environment-specific employee IDs
