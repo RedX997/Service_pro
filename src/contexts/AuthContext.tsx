@@ -11,24 +11,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users for different roles - using real employee IDs from production database
+// Get employee ID from environment variable (different for local vs production)
+const DEMO_EMPLOYEE_ID = import.meta.env.VITE_DEMO_EMPLOYEE_ID || '26830838-63af-4dab-b352-ef9181944550';
+
+// Demo users for different roles - using environment-specific employee IDs
 const demoUsers: Record<UserRole, User> = {
   super_admin: {
-    id: 'ed6bd312-47e1-4ab5-9585-2c73c63533b7', // Priya Mehta (Manager)
+    id: DEMO_EMPLOYEE_ID,
     name: 'Admin User',
     email: 'admin@servicepro.com',
     role: 'super_admin',
     avatar: undefined,
   },
   manager: {
-    id: 'ed6bd312-47e1-4ab5-9585-2c73c63533b7', // Priya Mehta (Manager)
+    id: DEMO_EMPLOYEE_ID,
     name: 'Sarah Manager',
     email: 'manager@servicepro.com',
     role: 'manager',
-    department: 'Income Tax',
+    department: 'Audit',
   },
   receptionist: {
-    id: 'ed6bd312-47e1-4ab5-9585-2c73c63533b7', // Priya Mehta (Manager)
+    id: DEMO_EMPLOYEE_ID,
     name: 'Mike Reception',
     email: 'reception@servicepro.com',
     role: 'receptionist',
