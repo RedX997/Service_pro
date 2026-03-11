@@ -46,6 +46,7 @@ router.get('/active/:employeeId', async (req, res) => {
 
 // Start timer
 router.post('/start', async (req, res) => {
+    console.log('=== START TIMER ENDPOINT HIT ===');
     try {
         console.log('Start timer request body:', req.body);
         

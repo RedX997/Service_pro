@@ -60,11 +60,13 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+console.log('Registering API routes...');
 app.use('/api/employees', employeeRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/visitors', visitorRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/time-entries', timeEntryRoutes);
+console.log('Time entries routes registered at /api/time-entries');
 app.use('/api/departments', departmentRoutes);
 app.use('/api/seed', seedRoutes);
 app.use('/api/tasks', taskRoutes);
