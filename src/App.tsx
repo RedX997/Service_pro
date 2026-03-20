@@ -8,6 +8,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/StrictProtectedRoute";
 import "@/lib/debug"; // Import debug utilities
+import DiagnosticTest from "./pages/DiagnosticTest";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -32,6 +33,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
+      <Route path="/diagnostic" element={<DiagnosticTest />} />
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/auth-demo" element={<AuthDemo />} />
