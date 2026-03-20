@@ -1,7 +1,7 @@
 {
   "name": "servicepro-management",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://yourusername.github.io/servicepro-management",
   "type": "module",
   "scripts": {
