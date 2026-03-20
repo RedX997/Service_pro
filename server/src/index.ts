@@ -27,7 +27,12 @@ import notificationRoutes from './routes/notifications.js';
 import testNotificationRoutes from './routes/test-notification.js';
 
 app.use(cors({
-  origin: true, // Allow all origins in development
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://servicepro-frontend-one.vercel.app',
+    /^https:\/\/servicepro-frontend-.*\.vercel\.app$/
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
