@@ -36,6 +36,13 @@ const API_URL = API_BASE_URL;
 // Extract socket URL from API URL (remove /api suffix)
 const SOCKET_URL = API_BASE_URL.replace('/api', '');
 
+console.log('🔔 NotificationContext initialized with:', {
+  API_BASE_URL,
+  API_URL,
+  SOCKET_URL,
+  env: import.meta.env.VITE_API_BASE_URL
+});
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
