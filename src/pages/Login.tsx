@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { executeLoginFlow } from '@/utils/loginHandler';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,28 +13,29 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [error, setError] = useState('');
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate a minimum delay for smoother UX
-    const [success] = await Promise.all([
-      login(email, password),
-      new Promise(resolve => setTimeout(resolve, 800))
-    ]);
-    setIsLoading(false);
-    if (success) {
-      navigate('/dashboard');
-    }
-  };
+    setError('');
 
-  const quickLogin = async (role: 'admin' | 'manager' | 'reception') => {
-    setIsLoading(true);
-    await login(`${role}@servicepro.com`, 'demo');
+    await executeLoginFlow(email, password, {
+      login,
+      navigate,
+      onError: setError
+    });
+
     setIsLoading(false);
-    navigate('/dashboard');
   };
 
   return (
@@ -144,6 +146,12 @@ export default function Login() {
                   </div>
                 </div>
 
+                {error && (
+                  <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-200">
+                    {error}
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full h-11 text-base shadow-lg hover:shadow-primary/25 transition-all" loading={isLoading}>
                   {!isLoading && <LogIn className="mr-2 h-4 w-4" />}
                   Sign In
@@ -155,35 +163,17 @@ export default function Login() {
                   <div className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-4 text-muted-foreground font-medium">Or continue with demo</span>
+                  <span className="bg-card px-4 text-muted-foreground font-medium">Test Credentials</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 flex flex-col gap-1 items-center hover:bg-primary/5 hover:border-primary/50 transition-all"
-                  onClick={() => quickLogin('admin')}
-                  disabled={isLoading}
-                >
-                  <span className="font-semibold text-xs">Admin</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 flex flex-col gap-1 items-center hover:bg-primary/5 hover:border-primary/50 transition-all"
-                  onClick={() => quickLogin('manager')}
-                  disabled={isLoading}
-                >
-                  <span className="font-semibold text-xs">Manager</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-3 flex flex-col gap-1 items-center hover:bg-primary/5 hover:border-primary/50 transition-all"
-                  onClick={() => quickLogin('reception')}
-                  disabled={isLoading}
-                >
-                  <span className="font-semibold text-xs">Staff</span>
-                </Button>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <p className="text-sm font-medium text-gray-700 mb-2">Available Test Accounts:</p>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p><strong>Super Admin:</strong> admin@servicepro.com / admin123</p>
+                  <p><strong>Manager:</strong> manager@servicepro.com / manager123</p>
+                  <p><strong>Receptionist:</strong> receptionist@servicepro.com / receptionist123</p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -83,9 +83,19 @@ servicepro-build.zip
 .next
 out/
 
+# Batch files and scripts
+*.bat
+
+# Test files
+test-*.html
+test-*.js
+*-test.html
+
 # Documentation with sensitive info (exclude from GitHub)
 *.md
 !README.md
 # But keep README.md minimal and safe
 
-.vercel
+# Backfill scripts (optional - can be included if needed)
+server/backfill-*.js
+server/check-*.js

@@ -1,6 +1,8 @@
 import express from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { notify } from '../helpers/notify.js';
+import { logClientActivity, ClientActivityAction } from '../helpers/logClientActivity.js';
 
 const router = express.Router();
 
@@ -22,6 +24,74 @@ router.post('/', async (req, res) => {
         const visitor = await prisma.visitor.create({
             data: req.body,
         });
+        
+        // 📝 LOG ACTIVITY: Visitor Entered (if linked to a client)
+        // Note: Visitors don't have clientId in schema yet, but we can accept it in request body
+        if (req.body.clientId) {
+            const performedBy = req.body.performedBy || 5; // TODO: Get from authenticated user
+            await logClientActivity({
+                clientId: req.body.clientId,
+                performedBy,
+                action: ClientActivityAction.VISITOR_ENTERED,
+                description: `${visitor.name} checked in for ${visitor.purpose}`,
+                metadata: {
+                    visitorId: visitor.id,
+                    visitorName: visitor.name,
+                    purpose: visitor.purpose,
+                    enteredAt: visitor.checkInTime,
+                    hostId: visitor.hostId
+                }
+            });
+        }
+        
+        // Send notification to all managers about new visitor
+        await notify({
+            role: 'manager',
+            type: 'visitor',
+            title: 'New Visitor Check-In',
+            message: `${visitor.name} has checked in. Purpose: ${visitor.purpose}`,
+            data: { 
+                visitorId: visitor.id,
+                visitorName: visitor.name,
+                purpose: visitor.purpose
+            },
+            priority: 'normal',
+            actionUrl: '/visitors'
+        });
+        
+        // If visitor has a host assigned, notify that employee
+        if (visitor.hostId) {
+            const host = await prisma.employee.findUnique({
+                where: { id: visitor.hostId }
+            });
+            
+            if (host && host.email) {
+                const user = await prisma.user.findUnique({
+                    where: { email: host.email }
+                });
+                
+                if (user) {
+                    await notify({
+                        userId: user.id,
+                        type: 'visitor',
+                        title: 'Visitor Assigned to You',
+                        message: `${visitor.name} is here to see you. Purpose: ${visitor.purpose}`,
+                        data: {
+                            visitorId: visitor.id,
+                            visitorName: visitor.name,
+                            purpose: visitor.purpose,
+                            hostId: host.id,
+                            hostName: host.name
+                        },
+                        priority: 'high',
+                        actionUrl: '/visitors'
+                    });
+                }
+            }
+        }
+        
+        console.log('✅ Notifications sent for new visitor');
+        
         res.json(visitor);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -44,13 +114,47 @@ router.patch('/:id', async (req, res) => {
 // Checkout visitor
 router.post('/:id/checkout', async (req, res) => {
     try {
+        // Get visitor data before checkout to calculate duration
+        const existingVisitor = await prisma.visitor.findUnique({
+            where: { id: req.params.id }
+        });
+        
+        if (!existingVisitor) {
+            return res.status(404).json({ error: 'Visitor not found' });
+        }
+        
+        const checkOutTime = new Date();
+        const duration = Math.floor((checkOutTime.getTime() - existingVisitor.checkInTime.getTime()) / 60000); // Duration in minutes
+        
         const visitor = await prisma.visitor.update({
             where: { id: req.params.id },
             data: {
-                checkOutTime: new Date(),
+                checkOutTime,
                 status: 'completed',
             },
         });
+        
+        // 📝 LOG ACTIVITY: Visitor Exited (if linked to a client)
+        // Note: Visitors don't have clientId in schema yet, but we can accept it in request body
+        if (req.body.clientId) {
+            const performedBy = req.body.performedBy || 5; // TODO: Get from authenticated user
+            await logClientActivity({
+                clientId: req.body.clientId,
+                performedBy,
+                action: ClientActivityAction.VISITOR_EXITED,
+                description: `${visitor.name} checked out after ${duration} minutes`,
+                metadata: {
+                    visitorId: visitor.id,
+                    visitorName: visitor.name,
+                    purpose: visitor.purpose,
+                    enteredAt: visitor.checkInTime,
+                    exitedAt: checkOutTime,
+                    duration: duration,
+                    durationFormatted: `${Math.floor(duration / 60)}h ${duration % 60}m`
+                }
+            });
+        }
+        
         res.json(visitor);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

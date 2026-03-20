@@ -9,8 +9,7 @@ import {
   FileText,
   Calendar,
   UserCheck,
-  LogOut,
-  ChevronDown
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavLink } from '@/components/NavLink';
@@ -28,12 +27,6 @@ import {
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
@@ -58,7 +51,7 @@ const menuItems: MenuItem[] = [
 ];
 
 export function AppSidebar() {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
 
@@ -117,41 +110,35 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full justify-start gap-3 h-auto p-2 text-sidebar-foreground hover:bg-sidebar-accent">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm">
-                  {user.name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              {!collapsed && (
-                <>
-                  <div className="flex flex-col items-start text-left flex-1">
-                    <span className="text-sm font-medium">{user.name}</span>
-                    <span className="text-xs text-sidebar-foreground/60">{getRoleLabel(user.role)}</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
-                </>
-              )}
+        <div className="space-y-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3 h-auto p-2 text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-sm">
+                {user?.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="flex flex-col items-start text-left flex-1">
+                <span className="text-sm font-medium">{user?.name || 'User'}</span>
+                <span className="text-xs text-sidebar-foreground/60">{user?.role ? getRoleLabel(user.role) : 'No role'}</span>
+              </div>
+            )}
+          </Button>
+          
+          {!collapsed && (
+            <Button
+              onClick={logout}
+              variant="ghost"
+              className="w-full justify-start gap-3 p-2 text-red-400 hover:text-red-300 hover:bg-red-950/20 transition-all duration-200 animate-in slide-in-from-top-2 fade-in-0"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="text-sm font-medium">Sign Out</span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => switchRole('super_admin')}>
-              Switch to Super Admin
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchRole('manager')}>
-              Switch to Manager
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => switchRole('receptionist')}>
-              Switch to Receptionist
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={logout} className="text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

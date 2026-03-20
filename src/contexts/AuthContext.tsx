@@ -1,120 +1,171 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole } from '@/types';
-import { apiClient } from '@/lib/api-client';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  isAuthenticated: boolean;
-  switchRole: (role: UserRole) => void;
+// User type definition
+export interface User {
+  id: number
+  name: string
+  role: 'super_admin' | 'manager' | 'receptionist'
+  originalRole?: 'super_admin' | 'manager' | 'receptionist' // Track the login role
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Auth context type
+interface AuthContextType {
+  user: User | null
+  login: (user: User) => void
+  logout: () => void
+  isAuthenticated: boolean
+  isLoading: boolean
+  switchRole: (role: 'super_admin' | 'manager' | 'receptionist') => void
+}
 
-// Will be set dynamically from the first employee in database
-let DEMO_EMPLOYEE_ID = 'loading...';
+// Create context
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Demo users for different roles
-const demoUsers: Record<UserRole, User> = {
-  super_admin: {
-    id: DEMO_EMPLOYEE_ID,
-    name: 'Admin User',
-    email: 'admin@servicepro.com',
-    role: 'super_admin',
-    avatar: undefined,
-  },
-  manager: {
-    id: DEMO_EMPLOYEE_ID,
-    name: 'Sarah Manager',
-    email: 'manager@servicepro.com',
-    role: 'manager',
-    department: 'Audit',
-  },
-  receptionist: {
-    id: DEMO_EMPLOYEE_ID,
-    name: 'Mike Reception',
-    email: 'reception@servicepro.com',
-    role: 'receptionist',
-  },
-};
+// Local storage key
+const AUTH_STORAGE_KEY = 'servicepro_auth_user'
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+// Auth provider component
+interface AuthProviderProps {
+  children: ReactNode
+}
 
-  // Fetch first employee ID on mount
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load user from localStorage on app start
   useEffect(() => {
-    const fetchEmployeeId = async () => {
+    const loadUserFromStorage = () => {
       try {
-        const employees = await apiClient.get<any[]>('/employees');
-        
-        if (employees && employees.length > 0) {
-          DEMO_EMPLOYEE_ID = employees[0].id;
-          
-          // Update all demo users with the real employee ID
-          demoUsers.super_admin.id = DEMO_EMPLOYEE_ID;
-          demoUsers.manager.id = DEMO_EMPLOYEE_ID;
-          demoUsers.receptionist.id = DEMO_EMPLOYEE_ID;
-          
-          console.log('✅ Using employee:', employees[0].name, '(ID:', DEMO_EMPLOYEE_ID, ')');
-        } else {
-          console.error('❌ No employees found in database');
+        const storedUser = localStorage.getItem(AUTH_STORAGE_KEY)
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser) as User
+          // Validate user structure
+          if (parsedUser && parsedUser.id && parsedUser.name && parsedUser.role) {
+            setUser(parsedUser)
+          } else {
+            // Clear invalid data
+            localStorage.removeItem(AUTH_STORAGE_KEY)
+          }
         }
       } catch (error) {
-        console.error('❌ Failed to fetch employee ID:', error);
+        console.error('Error loading user from localStorage:', error)
+        // Clear invalid data
+        localStorage.removeItem(AUTH_STORAGE_KEY)
+      } finally {
+        setIsLoading(false)
       }
-    };
-    
-    fetchEmployeeId();
-  }, []);
-
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Demo login - check email suffix to determine role
-    if (email.includes('admin')) {
-      setUser(demoUsers.super_admin);
-      return true;
-    } else if (email.includes('manager')) {
-      setUser(demoUsers.manager);
-      return true;
-    } else if (email.includes('reception')) {
-      setUser(demoUsers.receptionist);
-      return true;
     }
-    // Default to receptionist for demo
-    if (password.length > 0) {
-      setUser(demoUsers.receptionist);
-      return true;
-    }
-    return false;
-  };
 
+    loadUserFromStorage()
+  }, [])
+
+  // Login function
+  const login = (userData: User) => {
+    try {
+      // Validate user data
+      if (!userData || !userData.id || !userData.name || !userData.role) {
+        throw new Error('Invalid user data')
+      }
+      
+      // Set originalRole to track the login role
+      const userWithOriginalRole: User = {
+        ...userData,
+        originalRole: userData.originalRole || userData.role // Preserve originalRole if it exists
+      }
+      
+      setUser(userWithOriginalRole)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithOriginalRole))
+    } catch (error) {
+      console.error('Error saving user to localStorage:', error)
+      throw error
+    }
+  }
+
+  // Logout function
   const logout = () => {
-    setUser(null);
-  };
+    setUser(null)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+  }
 
-  const switchRole = (role: UserRole) => {
-    setUser(demoUsers[role]);
-  };
+  // Switch role function - allows super admin and manager to view different dashboards
+  const switchRole = (newRole: 'super_admin' | 'manager' | 'receptionist') => {
+    if (!user) return
+    
+    // Use originalRole to determine permissions (not current role)
+    const loginRole = user.originalRole || user.role
+    
+    // Super admin can switch to any role
+    if (loginRole === 'super_admin') {
+      const updatedUser: User = {
+        ...user,
+        role: newRole,
+        originalRole: loginRole // Keep original role
+      }
+      setUser(updatedUser)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
+      return
+    }
+    
+    // Manager can only switch between manager and receptionist
+    if (loginRole === 'manager') {
+      if (newRole === 'super_admin') {
+        console.warn('Manager cannot switch to super admin role')
+        return
+      }
+      const updatedUser: User = {
+        ...user,
+        role: newRole,
+        originalRole: loginRole // Keep original role
+      }
+      setUser(updatedUser)
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
+      return
+    }
+    
+    // Receptionist cannot switch roles
+    console.warn('Receptionist cannot switch roles')
+  }
+
+  // Helper functions
+  const isAuthenticated = user !== null
+
+  // Context value
+  const value: AuthContextType = {
+    user,
+    login,
+    logout,
+    isAuthenticated,
+    isLoading,
+    switchRole
+  }
+
+  // Show loading spinner while initializing
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isAuthenticated: !!user,
-        switchRole,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
+// Custom hook to use auth context
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext)
+  
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
+  
+  return context
 }
+
+// Export context for advanced usage
+export { AuthContext }

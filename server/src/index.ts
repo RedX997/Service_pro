@@ -1,12 +1,18 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import { prisma } from './lib/prisma.js';
+import { initializeSocket } from './socket.js';
 
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const port = process.env.PORT || 3000;
+
+// Initialize Socket.io
+initializeSocket(httpServer);
 
 import employeeRoutes from './routes/employees.js';
 import clientRoutes from './routes/clients.js';
@@ -16,41 +22,15 @@ import timeEntryRoutes from './routes/time-entries.js';
 import departmentRoutes from './routes/departments.js';
 import seedRoutes from './routes/seed.js';
 import taskRoutes from './routes/tasks.js';
+import authRoutes from './routes/auth.js';
+import notificationRoutes from './routes/notifications.js';
+import testNotificationRoutes from './routes/test-notification.js';
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:8080',
-      'http://localhost:3000',
-      'https://servicepro-frontend-one.vercel.app',
-      'https://servicepro-frontend-m8g0vltmc-redx927s-projects.vercel.app',
-      'https://servicepro-frontend-884eo6r3s-redx927s-projects.vercel.app',
-      'https://servicepro-frontend-6qjbu9vx9-redx927s-projects.vercel.app',
-      'https://servicepro-frontend-1totp2tom-redx927s-projects.vercel.app',
-      'https://servicepro-frontend-136q1vfa2-redx927s-projects.vercel.app'
-    ];
-    
-    // Allow any localhost port in development
-    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-      return callback(null, true);
-    }
-    
-    // Allow any Vercel preview deployment
-    if (origin.includes('vercel.app')) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
+  origin: true, // Allow all origins in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
@@ -70,7 +50,14 @@ console.log('Time entries routes registered at /api/time-entries');
 app.use('/api/departments', departmentRoutes);
 app.use('/api/seed', seedRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/auth', authRoutes);
+console.log('Auth routes registered at /api/auth');
+app.use('/api/notifications', notificationRoutes);
+console.log('Notification routes registered at /api/notifications');
+app.use('/api/test-notification', testNotificationRoutes);
+console.log('Test notification route registered at /api/test-notification');
 
-app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
+httpServer.listen(port, () => {
+    console.log(`🚀 Server is running at http://localhost:${port}`);
+    console.log(`🔌 Socket.io ready for connections`);
 });

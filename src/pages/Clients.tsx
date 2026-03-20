@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { FilterBar, FilterTextInput, FilterDropdown, FilterMultiSelect } from '@/components/filters';
+import { ClientActivitySheet } from '@/components/ClientActivitySheet';
 import {
   Dialog,
   DialogContent,
@@ -75,6 +76,8 @@ export default function Clients() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isActivitySheetOpen, setIsActivitySheetOpen] = useState(false);
+  const [activityClient, setActivityClient] = useState<Client | null>(null);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
@@ -354,6 +357,11 @@ export default function Clients() {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleViewActivity = (client: Client) => {
+    setActivityClient(client);
+    setIsActivitySheetOpen(true);
+  };
+
   const confirmDeleteClient = async () => {
     if (!deletingClient) return;
 
@@ -587,7 +595,7 @@ export default function Clients() {
                             <MessageSquare className="h-4 w-4 mr-2" />
                             Send Message
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewActivity(client)}>
                             <FileText className="h-4 w-4 mr-2" />
                             View Documents
                           </DropdownMenuItem>
@@ -946,6 +954,16 @@ export default function Clients() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Client Activity Sheet */}
+      {activityClient && (
+        <ClientActivitySheet
+          clientId={activityClient.id}
+          clientName={activityClient.name}
+          open={isActivitySheetOpen}
+          onOpenChange={setIsActivitySheetOpen}
+        />
+      )}
     </DashboardLayout>
   );
 }
