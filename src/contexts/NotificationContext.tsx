@@ -46,21 +46,37 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Fetch notifications from REST API
   const fetchNotifications = useCallback(async () => {
     if (!user) {
+      console.log('🔔 No user, skipping notification fetch');
       setNotifications([]);
       setUnreadCount(0);
       setLoading(false);
       return;
     }
 
+    console.log('🔔 Fetching notifications for user:', user.id, 'from:', API_URL);
+
     try {
-      const response = await fetch(`${API_URL}/notifications?userId=${user.id}&limit=50`);
-      if (!response.ok) throw new Error('Failed to fetch notifications');
+      const url = `${API_URL}/notifications?userId=${user.id}&limit=50`;
+      console.log('🔔 Fetching from URL:', url);
+      
+      const response = await fetch(url);
+      console.log('🔔 Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔔 Response error:', errorText);
+        throw new Error('Failed to fetch notifications');
+      }
       
       const data = await response.json();
+      console.log('🔔 Fetched notifications:', data);
+      
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
+      
+      console.log('🔔 Set notifications:', data.notifications?.length, 'unread:', data.unreadCount);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('🔔 Error fetching notifications:', error);
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
