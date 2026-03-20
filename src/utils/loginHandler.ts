@@ -58,8 +58,11 @@ export const performLogin = async (
   password: string
 ): Promise<LoginResult> => {
   try {
+    // Get API URL from environment variable or fallback to localhost
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+    
     // Call the actual API endpoint
-    const response = await fetch('http://localhost:3000/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json' 
