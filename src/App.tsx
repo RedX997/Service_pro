@@ -155,7 +155,16 @@ function AppRoutes() {
   );
 }
 
-const App = () => (
+const App = () => {
+  // Debug: Log environment variables on app load
+  console.log('🚀 App Environment Check:', {
+    VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+    VITE_USE_API: import.meta.env.VITE_USE_API,
+    MODE: import.meta.env.MODE,
+    PROD: import.meta.env.PROD
+  });
+
+  return (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -177,5 +186,6 @@ const App = () => (
     </QueryClientProvider>
   </ErrorBoundary>
 );
+};
 
 export default App;
