@@ -39,6 +39,11 @@ export const LoginForm: React.FC = () => {
     <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
       
+      {/* Version indicator */}
+      <div className="mb-4 text-center text-xs text-gray-400">
+        Build: v2.0-hostname-detection
+      </div>
+      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-700">

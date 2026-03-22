@@ -18,4 +18,14 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Force new build with different hash
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name]-[hash]-v2.js`,
+        chunkFileNames: `assets/[name]-[hash]-v2.js`,
+        assetFileNames: `assets/[name]-[hash]-v2.[ext]`
+      }
+    }
+  }
 }));
