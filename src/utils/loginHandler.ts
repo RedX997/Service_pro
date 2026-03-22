@@ -58,11 +58,13 @@ export const performLogin = async (
   password: string
 ): Promise<LoginResult> => {
   try {
-    // Get API URL from environment variable or fallback to production URL
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-      (import.meta.env.PROD ? 'https://servicepro-backend.onrender.com/api' : 'http://localhost:3000/api');
+    // HARDCODED: Always use production URL when deployed
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_BASE_URL = isDevelopment 
+      ? 'http://localhost:3000/api'
+      : 'https://servicepro-backend.onrender.com/api';
     
-    console.log('🔐 Login attempt with API URL:', API_BASE_URL);
+    console.log('🔐 Login attempt with API URL:', API_BASE_URL, '(hostname:', window.location.hostname, ')');
     
     // Call the actual API endpoint
     const response = await fetch(`${API_BASE_URL}/auth/login`, {

@@ -29,20 +29,23 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Get API URL from environment variable or fallback to production URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.PROD ? 'https://servicepro-backend.onrender.com/api' : 'http://localhost:3000/api');
-const API_URL = API_BASE_URL;
+// HARDCODED: Detect environment based on hostname
+const isDevelopment = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-// Extract socket URL from API URL (remove /api suffix)
+const API_BASE_URL = isDevelopment 
+  ? 'http://localhost:3000/api'
+  : 'https://servicepro-backend.onrender.com/api';
+
+const API_URL = API_BASE_URL;
 const SOCKET_URL = API_BASE_URL.replace('/api', '');
 
 console.log('🔔 NotificationContext initialized with:', {
+  hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+  isDevelopment,
   API_BASE_URL,
   API_URL,
-  SOCKET_URL,
-  env: import.meta.env.VITE_API_BASE_URL,
-  isProd: import.meta.env.PROD
+  SOCKET_URL
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
