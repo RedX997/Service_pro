@@ -58,10 +58,14 @@ export const performLogin = async (
   password: string
 ): Promise<LoginResult> => {
   try {
-    // PRODUCTION HARDCODED - No environment variables needed
-    const API_BASE_URL = 'https://servicepro-backend.onrender.com/api';
+    // Use environment variable with fallback
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
     
-    console.log('🔐 Login attempt (HARDCODED):', API_BASE_URL);
+    console.log('🔐 Login attempt:', {
+      url: API_BASE_URL,
+      env: import.meta.env.VITE_API_BASE_URL,
+      mode: import.meta.env.MODE
+    });
     
     // Call the actual API endpoint
     const response = await fetch(`${API_BASE_URL}/auth/login`, {

@@ -29,14 +29,16 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// PRODUCTION HARDCODED - No environment variables needed
-const API_BASE_URL = 'https://servicepro-backend.onrender.com/api';
+// Use environment variable with fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 const API_URL = API_BASE_URL;
-const SOCKET_URL = 'https://servicepro-backend.onrender.com';
+const SOCKET_URL = API_BASE_URL.replace('/api', '');
 
-console.log('🔔 NotificationContext initialized (HARDCODED):', {
+console.log('🔔 NotificationContext initialized:', {
   API_URL,
-  SOCKET_URL
+  SOCKET_URL,
+  env: import.meta.env.VITE_API_BASE_URL,
+  mode: import.meta.env.MODE
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
