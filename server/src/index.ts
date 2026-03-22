@@ -30,8 +30,11 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://localhost:8080',
     'https://servicepro-frontend-one.vercel.app',
-    /^https:\/\/servicepro-frontend-.*\.vercel\.app$/
+    'https://service-pro-chi.vercel.app',
+    /^https:\/\/servicepro-frontend-.*\.vercel\.app$/,
+    /^https:\/\/service-pro-.*\.vercel\.app$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
