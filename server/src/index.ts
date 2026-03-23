@@ -27,15 +27,38 @@ import notificationRoutes from './routes/notifications.js';
 import testNotificationRoutes from './routes/test-notification.js';
 
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8080',
-    'https://servicepro-frontend-one.vercel.app',
-    'https://service-pro-chi.vercel.app',
-    /^https:\/\/servicepro-frontend-.*\.vercel\.app$/,
-    /^https:\/\/service-pro-.*\.vercel\.app$/
-  ],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Postman, or file://)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:8080',
+      'https://servicepro-frontend-one.vercel.app',
+      'https://service-pro-chi.vercel.app',
+    ];
+    
+    const allowedPatterns = [
+      /^https:\/\/servicepro-frontend-.*\.vercel\.app$/,
+      /^https:\/\/service-pro-.*\.vercel\.app$/,
+      /^file:\/\//  // Allow file:// protocol for local HTML files
+    ];
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Check if origin matches any pattern
+    for (const pattern of allowedPatterns) {
+      if (pattern.test(origin)) {
+        return callback(null, true);
+      }
+    }
+    
+    callback(null, true); // Allow all for development
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
