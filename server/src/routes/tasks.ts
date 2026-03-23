@@ -42,6 +42,60 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get today's tasks
+router.get('/today', async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const tasks = await prisma.task.findMany({
+            where: {
+                OR: [
+                    {
+                        dueDate: {
+                            gte: today,
+                            lt: tomorrow,
+                        },
+                    },
+                    {
+                        dueDate: {
+                            lt: today,
+                        },
+                        status: {
+                            not: 'completed',
+                        },
+                    },
+                ],
+            },
+            include: {
+                assignee: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                        department: true,
+                    },
+                },
+                client: {
+                    select: {
+                        id: true,
+                        name: true,
+                        company: true,
+                    },
+                },
+            },
+            orderBy: { dueDate: 'asc' },
+        });
+        res.json(tasks);
+    } catch (error: any) {
+        console.error('Error fetching today tasks:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get tasks for a specific employee
 router.get('/employee/:employeeId', async (req, res) => {
     try {
@@ -88,8 +142,21 @@ router.post('/', async (req, res) => {
     try {
         console.log('Creating task with data:', req.body);
         
+        // If assignedTo is a placeholder or missing, use the first employee
+        let assignedTo = req.body.assignedTo;
+        if (!assignedTo || assignedTo === 'current-user-id') {
+            const firstEmployee = await prisma.employee.findFirst();
+            if (!firstEmployee) {
+                return res.status(400).json({ error: 'No employees found to assign task' });
+            }
+            assignedTo = firstEmployee.id;
+        }
+        
         const task = await prisma.task.create({
-            data: req.body,
+            data: {
+                ...req.body,
+                assignedTo,
+            },
             include: {
                 assignee: {
                     select: {
