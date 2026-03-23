@@ -44,9 +44,40 @@ router.post('/', async (req, res) => {
             });
         }
         
-        // Send notification to all managers about new visitor
+        // Send notifications about new visitor
+        // 1. Notify receptionists (they handle visitors)
+        await notify({
+            role: 'receptionist',
+            type: 'visitor',
+            title: 'New Visitor Check-In',
+            message: `${visitor.name} has checked in. Purpose: ${visitor.purpose}`,
+            data: { 
+                visitorId: visitor.id,
+                visitorName: visitor.name,
+                purpose: visitor.purpose
+            },
+            priority: 'normal',
+            actionUrl: '/visitors'
+        });
+        
+        // 2. Notify managers (operational oversight)
         await notify({
             role: 'manager',
+            type: 'visitor',
+            title: 'New Visitor Check-In',
+            message: `${visitor.name} has checked in. Purpose: ${visitor.purpose}`,
+            data: { 
+                visitorId: visitor.id,
+                visitorName: visitor.name,
+                purpose: visitor.purpose
+            },
+            priority: 'normal',
+            actionUrl: '/visitors'
+        });
+        
+        // 3. Notify admins (system oversight)
+        await notify({
+            role: 'super_admin',
             type: 'visitor',
             title: 'New Visitor Check-In',
             message: `${visitor.name} has checked in. Purpose: ${visitor.purpose}`,

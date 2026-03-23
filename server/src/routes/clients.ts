@@ -49,9 +49,24 @@ router.post('/', async (req, res) => {
             }
         });
         
-        // Send notification to all managers about new client
+        // Send notifications about new client
+        // 1. Notify managers and admins (oversight)
         await notify({
             role: 'manager',
+            type: 'system',
+            title: 'New Client Added',
+            message: `${client.name} has been added as a new client`,
+            data: { 
+                clientId: client.id,
+                clientName: client.name,
+                company: client.company
+            },
+            priority: 'normal',
+            actionUrl: '/clients'
+        });
+        
+        await notify({
+            role: 'super_admin',
             type: 'system',
             title: 'New Client Added',
             message: `${client.name} has been added as a new client`,
@@ -191,9 +206,24 @@ router.patch('/:id', async (req, res) => {
                 });
             }
             
-            // Notify managers about reassignment
+            // Notify managers and admins about reassignment
             await notify({
                 role: 'manager',
+                type: 'system',
+                title: 'Client Reassigned',
+                message: `${client.name} has been reassigned`,
+                data: {
+                    clientId: client.id,
+                    clientName: client.name,
+                    oldEmployeeId: oldClient.assignedEmployee,
+                    newEmployeeId: client.assignedEmployee
+                },
+                priority: 'high',
+                actionUrl: '/clients'
+            });
+            
+            await notify({
+                role: 'super_admin',
                 type: 'system',
                 title: 'Client Reassigned',
                 message: `${client.name} has been reassigned`,
