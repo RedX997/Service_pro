@@ -36,19 +36,29 @@ export function TodayTasksCard() {
     dueTime: ''
   });
 
+  console.log('TodayTasksCard - API_URL:', API_URL);
+
   useEffect(() => {
     fetchTodayTasks();
   }, []);
 
   const fetchTodayTasks = async () => {
     try {
+      console.log('Fetching tasks from:', `${API_URL}/tasks/today`);
       const response = await fetch(`${API_URL}/tasks/today`);
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Tasks received:', data);
         setTasks(data); // Show all today's tasks, not just 5
+      } else {
+        console.error('Failed to fetch tasks:', response.status, response.statusText);
+        toast.error('Failed to load tasks');
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      toast.error('Error loading tasks');
     } finally {
       setLoading(false);
     }
