@@ -54,9 +54,10 @@ export function useMessaging(userId: string, userType: 'employee' | 'client') {
     const newSocket = io(SOCKET_URL, {
       auth: {
         token: 'temp-token', // TODO: Use real JWT token
-        userId: userId,
+        userId: '1', // Temporary: use numeric ID for Socket.io auth
       },
       transports: ['websocket', 'polling'],
+      reconnection: false, // Disable auto-reconnection for now
     });
 
     newSocket.on('connect', () => {
