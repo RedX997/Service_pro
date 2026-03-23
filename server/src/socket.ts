@@ -74,9 +74,107 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
     socket.join(roleRoom);
     console.log(`   → Joined room: ${roleRoom}`);
 
+    // ========== MESSAGING EVENTS ==========
+
+    // User goes online
+    socket.on('user:online', async (data: { userId: string; userType: string }) => {
+      try {
+        await prisma.userStatus.upsert({
+          where: { userId: data.userId },
+          update: {
+            isOnline: true,
+            lastSeen: new Date(),
+            socketId: socket.id,
+          },
+          create: {
+            userId: data.userId,
+            userType: data.userType,
+            isOnline: true,
+            socketId: socket.id,
+          },
+        });
+
+        // Broadcast online status
+        socket.broadcast.emit('user:status', {
+          userId: data.userId,
+          isOnline: true,
+        });
+
+        console.log(`🟢 User ${data.userId} is online`);
+      } catch (error) {
+        console.error('Error updating online status:', error);
+      }
+    });
+
+    // Join conversation room
+    socket.on('conversation:join', (conversationId: string) => {
+      socket.join(conversationId);
+      console.log(`💬 User ${userId} joined conversation: ${conversationId}`);
+    });
+
+    // Leave conversation room
+    socket.on('conversation:leave', (conversationId: string) => {
+      socket.leave(conversationId);
+      console.log(`👋 User ${userId} left conversation: ${conversationId}`);
+    });
+
+    // Typing indicator
+    socket.on('typing:start', (data: { conversationId: string; userId: string; userName: string }) => {
+      socket.to(data.conversationId).emit('typing:start', {
+        userId: data.userId,
+        userName: data.userName,
+      });
+    });
+
+    socket.on('typing:stop', (data: { conversationId: string; userId: string }) => {
+      socket.to(data.conversationId).emit('typing:stop', {
+        userId: data.userId,
+      });
+    });
+
+    // Message sent (real-time broadcast)
+    socket.on('message:send', (message: any) => {
+      socket.to(message.conversationId).emit('message:new', message);
+      console.log(`📨 Message sent in conversation ${message.conversationId}`);
+    });
+
+    // Message delivered acknowledgment
+    socket.on('message:delivered', (data: { messageId: string; conversationId: string }) => {
+      socket.to(data.conversationId).emit('message:delivered', data);
+    });
+
+    // Message read acknowledgment
+    socket.on('message:read', (data: { messageId: string; conversationId: string }) => {
+      socket.to(data.conversationId).emit('message:read', data);
+    });
+
+    // ========== END MESSAGING EVENTS ==========
+
     // Handle disconnection
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`❌ User disconnected: ${userName} (ID: ${userId})`);
+
+      // Update user status to offline
+      try {
+        await prisma.userStatus.updateMany({
+          where: { socketId: socket.id },
+          data: {
+            isOnline: false,
+            lastSeen: new Date(),
+            socketId: null,
+          },
+        });
+
+        // Broadcast offline status
+        socket.broadcast.emit('user:status', {
+          userId: userId.toString(),
+          isOnline: false,
+        });
+
+        console.log(`🔴 User ${userId} is offline`);
+      } catch (error) {
+        console.error('Error updating offline status:', error);
+      }
     });
 
     // Optional: Handle client acknowledgment

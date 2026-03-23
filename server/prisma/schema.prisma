@@ -58,18 +58,75 @@ model Visitor {
   createdAt    DateTime  @default(now())
 }
 
-model Message {
-  id         String   @id @default(uuid())
-  content    String
-  senderId   String
-  senderType String   // 'client' | 'employee'
-  clientId   String
-  isRead     Boolean  @default(false)
-  timestamp  DateTime @default(now())
-  createdAt  DateTime @default(now())
+// Conversation between employee and client
+model Conversation {
+  id              String    @id @default(uuid())
+  clientId        String
+  employeeId      String
+  lastMessageId   String?
+  lastMessageAt   DateTime?
+  unreadCount     Int       @default(0) // Unread count for employee
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   
-  client     Client   @relation(fields: [clientId], references: [id])
-  employee   Employee? @relation(fields: [senderId], references: [id])
+  messages        Message[]
+  
+  @@unique([clientId, employeeId])
+  @@index([clientId])
+  @@index([employeeId])
+  @@index([lastMessageAt])
+}
+
+// Enhanced Message Model with WhatsApp features
+model Message {
+  id              String    @id @default(uuid())
+  conversationId  String?   // Made optional for migration
+  content         String    @db.Text
+  senderId        String
+  senderType      String    // 'client' | 'employee'
+  clientId        String    // For backward compatibility
+  
+  // WhatsApp-like status
+  isRead          Boolean   @default(false)
+  isDelivered     Boolean   @default(false)
+  isEdited        Boolean   @default(false)
+  
+  // Reply feature
+  replyToId       String?
+  
+  // Reactions (JSON: {userId: emoji})
+  reactions       Json?
+  
+  // Timestamps
+  timestamp       DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  editedAt        DateTime?
+  
+  // Relations
+  conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  client          Client        @relation(fields: [clientId], references: [id])
+  employee        Employee?     @relation(fields: [senderId], references: [id])
+  replyTo         Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies         Message[]     @relation("MessageReplies")
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([timestamp])
+  @@index([clientId])
+}
+
+// User online status
+model UserStatus {
+  userId          String    @id
+  userType        String    // 'employee' | 'client'
+  isOnline        Boolean   @default(false)
+  lastSeen        DateTime  @default(now())
+  socketId        String?
+  
+  @@index([isOnline])
+  @@index([userType])
 }
 
 model TimeEntry {
