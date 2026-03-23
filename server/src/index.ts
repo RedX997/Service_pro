@@ -65,7 +65,7 @@ console.log('Notification routes registered at /api/notifications');
 app.use('/api/test-notification', testNotificationRoutes);
 console.log('Test notification route registered at /api/test-notification');
 
-httpServer.listen(port, '0.0.0.0', () => {
+httpServer.listen(port, () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);
     console.log(`🔌 Socket.io ready for connections`);
     console.log(`📡 Listening on 0.0.0.0:${port}`);
