@@ -1,9 +1,9 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '@/components/ui/stat-card';
+import { TodayTasksCard } from '@/components/TodayTasksCard';
 import { RecentVisitors } from '@/components/dashboard/RecentVisitors';
 import { RedZoneChats } from '@/components/dashboard/RedZoneChats';
-import { TaskList } from '@/components/dashboard/TaskList';
 import { ClientAssignment } from '@/components/dashboard/ClientAssignment';
 import { Users, UserPlus, Clock, MessageSquare, Building2, FileText, AlertTriangle } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
@@ -53,7 +53,7 @@ function SuperAdminDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <TaskList />
+        <TodayTasksCard />
         <ClientAssignment />
       </div>
 
@@ -141,7 +141,7 @@ function ManagerDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <TaskList />
+        <TodayTasksCard />
         <RecentVisitors />
       </div>
     </div>
@@ -226,7 +226,7 @@ function ReceptionistDashboard() {
         <div className="lg:col-span-2">
           <RecentVisitors />
         </div>
-        <TaskList />
+        <TodayTasksCard />
       </div>
     </div>
   );

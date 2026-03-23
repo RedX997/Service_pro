@@ -21,6 +21,7 @@ import Departments from "./pages/Departments";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Appointments from "./pages/Appointments";
+import Tasks from "./pages/Tasks";
 import AuthDemo from "./pages/AuthDemo";
 import ProtectedRouteDemo from "./pages/ProtectedRouteDemo";
 import RBACTest from "./pages/RBACTest";
@@ -146,6 +147,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="receptionist">
             <Appointments />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute requiredRole="receptionist">
+            <Tasks />
           </ProtectedRoute>
         } 
       />
