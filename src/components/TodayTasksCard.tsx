@@ -45,7 +45,7 @@ export function TodayTasksCard() {
       const response = await fetch(`${API_URL}/tasks/today`);
       if (response.ok) {
         const data = await response.json();
-        setTasks(data.slice(0, 5)); // Show max 5 tasks
+        setTasks(data); // Show all today's tasks, not just 5
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -238,27 +238,30 @@ export function TodayTasksCard() {
           </div>
         ) : (
           <>
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
-              >
-                <Checkbox
-                  checked={task.status === 'completed'}
-                  onCheckedChange={() => handleToggleComplete(task.id, task.status)}
-                  className="mt-1"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className={`font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
-                    {task.title}
-                  </p>
-                  <div className={`flex items-center gap-1 text-xs mt-1 ${getTaskColor(task)}`}>
-                    <Clock className="h-3 w-3" />
-                    <span>{formatDueDate(task.dueDate)}</span>
+            {/* Scrollable task list with max height */}
+            <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
+                >
+                  <Checkbox
+                    checked={task.status === 'completed'}
+                    onCheckedChange={() => handleToggleComplete(task.id, task.status)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                      {task.title}
+                    </p>
+                    <div className={`flex items-center gap-1 text-xs mt-1 ${getTaskColor(task)}`}>
+                      <Clock className="h-3 w-3" />
+                      <span>{formatDueDate(task.dueDate)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full mt-2">
