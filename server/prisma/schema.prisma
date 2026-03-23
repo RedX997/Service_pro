@@ -39,7 +39,6 @@ model Employee {
   status      String   @default("active")
   createdAt   DateTime @default(now())
   timeEntries TimeEntry[]
-  messages    Message[]
   assignedTasks Task[] @relation("AssignedTasks")
   createdTasks  Task[] @relation("CreatedTasks")
 }
@@ -107,7 +106,7 @@ model Message {
   // Relations
   conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   client          Client        @relation(fields: [clientId], references: [id])
-  employee        Employee?     @relation(fields: [senderId], references: [id])
+  // Removed employee foreign key - senderId can be either employee or client ID
   replyTo         Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies         Message[]     @relation("MessageReplies")
   
