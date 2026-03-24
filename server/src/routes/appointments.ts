@@ -1,6 +1,7 @@
 import express from 'express';
 import { prisma } from '../lib/prisma.js';
 import { notify } from '../helpers/notify.js';
+import { scheduleReminder } from '../helpers/appointmentReminders.js';
 
 const router = express.Router();
 
@@ -195,6 +196,15 @@ router.post('/', async (req, res) => {
       )
     ).catch(err => console.error('⚠️ Notification error (non-fatal):', err.message));
 
+    // Schedule 10-min reminder for receptionists
+    scheduleReminder({
+      id: appointment.id,
+      date: appointment.date,
+      time: appointment.time,
+      contactPerson: appointment.contactPerson,
+      purpose: appointment.purpose,
+    });
+
     res.status(201).json(appointment);
   } catch (error: any) {
     console.error('❌ Error creating appointment:', error.message);
@@ -379,6 +389,17 @@ router.patch('/:id/complete', async (req, res) => {
       where: { id },
       data: { status: 'completed' },
     });
+
+    // Notify receptionists that the meeting is completed
+    notify({
+      role: 'receptionist',
+      type: 'appointment',
+      title: 'Appointment Completed',
+      message: `Appointment with ${appointment.contactPerson} at ${appointment.time} for ${appointment.purpose} has been completed.`,
+      data: { appointmentId: id },
+      actionUrl: '/appointments',
+      priority: 'normal',
+    }).catch(err => console.error('⚠️ Completion notification error (non-fatal):', err.message));
 
     res.json(updated);
   } catch (error: any) {

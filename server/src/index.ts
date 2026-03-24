@@ -26,6 +26,7 @@ import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import testNotificationRoutes from './routes/test-notification.js';
 import appointmentRoutes from './routes/appointments.js';
+import { scheduleAllUpcomingReminders } from './helpers/appointmentReminders.js';
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -95,4 +96,7 @@ httpServer.listen(port, () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);
     console.log(`🔌 Socket.io ready for connections`);
     console.log(`📡 Listening on 0.0.0.0:${port}`);
+
+    // Schedule 10-min reminders for all upcoming appointments
+    scheduleAllUpcomingReminders();
 });
