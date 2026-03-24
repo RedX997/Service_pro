@@ -54,10 +54,12 @@ export function useMessaging(userId: string, userType: 'employee' | 'client') {
     const newSocket = io(SOCKET_URL, {
       auth: {
         token: 'temp-token', // TODO: Use real JWT token
-        userId: '1', // Temporary: use numeric ID for Socket.io auth
+        userId: userId, // Use the actual employee UUID
       },
       transports: ['websocket', 'polling'],
-      reconnection: false, // Disable auto-reconnection for now
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
     });
 
     newSocket.on('connect', () => {
@@ -75,6 +77,7 @@ export function useMessaging(userId: string, userType: 'employee' | 'client') {
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
+      setIsConnected(false);
     });
 
     // Listen for new messages

@@ -13,9 +13,9 @@ import { toast } from 'sonner';
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 // TODO: Get from AuthContext
-const CURRENT_USER_ID = 'emp1'; // Replace with actual employee ID
+const CURRENT_USER_ID = '871d8c21-fed4-4352-935b-dd7dd701ccd0'; // Rahul Verma - Replace with actual employee ID from auth
 const CURRENT_USER_TYPE = 'employee';
-const CURRENT_USER_NAME = 'Current Employee';
+const CURRENT_USER_NAME = 'Rahul Verma';
 
 interface Client {
   id: string;
@@ -36,6 +36,7 @@ interface Conversation {
 
 export default function Messages() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,26 +61,71 @@ export default function Messages() {
     loadMessages,
   } = useMessaging(CURRENT_USER_ID, CURRENT_USER_TYPE);
 
-  // Load conversations on mount
+  // Load conversations and all clients on mount
   useEffect(() => {
-    fetchConversations();
+    fetchConversationsAndClients();
   }, []);
 
-  const fetchConversations = async () => {
+  const fetchConversationsAndClients = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/messages/conversations/${CURRENT_USER_ID}`);
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
+      
+      // Fetch existing conversations
+      const convResponse = await fetch(`${API_URL}/messages/conversations/${CURRENT_USER_ID}`);
+      let existingConversations: Conversation[] = [];
+      
+      if (convResponse.ok) {
+        const data = await convResponse.json();
+        existingConversations = data.filter((conv: Conversation) => conv.client);
+      }
+      
+      // Fetch all clients
+      const clientsResponse = await fetch(`${API_URL}/clients`);
+      if (clientsResponse.ok) {
+        const clientsData = await clientsResponse.json();
+        setAllClients(clientsData);
         
-        // Auto-select first conversation
-        if (data.length > 0 && !selectedConversation) {
-          handleSelectConversation(data[0]);
+        // Create conversation objects for all clients
+        const allConversations: Conversation[] = clientsData.map((client: Client) => {
+          // Check if conversation already exists
+          const existingConv = existingConversations.find(c => c.clientId === client.id);
+          
+          if (existingConv) {
+            return existingConv;
+          } else {
+            // Create a placeholder conversation
+            return {
+              id: `temp-${client.id}`, // Temporary ID
+              clientId: client.id,
+              employeeId: CURRENT_USER_ID,
+              unreadCount: 0,
+              client: client,
+              lastMessage: null,
+              lastMessageAt: undefined,
+            };
+          }
+        });
+        
+        // Sort: conversations with messages first, then alphabetically
+        allConversations.sort((a, b) => {
+          if (a.lastMessageAt && !b.lastMessageAt) return -1;
+          if (!a.lastMessageAt && b.lastMessageAt) return 1;
+          if (a.lastMessageAt && b.lastMessageAt) {
+            return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+          }
+          return (a.client?.name || '').localeCompare(b.client?.name || '');
+        });
+        
+        setConversations(allConversations);
+        
+        // Auto-select first conversation with messages
+        const firstWithMessages = allConversations.find(c => c.lastMessage);
+        if (firstWithMessages && !selectedConversation) {
+          handleSelectConversation(firstWithMessages);
         }
       }
     } catch (error) {
-      console.error('Error fetching conversations:', error);
+      console.error('Error fetching data:', error);
       toast.error('Failed to load conversations');
     } finally {
       setLoading(false);
@@ -93,27 +139,62 @@ export default function Messages() {
       leaveConversation(selectedConversation.id);
     }
 
-    setSelectedConversation(conversation);
+    // If this is a temporary conversation (no real ID yet), create it
+    let actualConversation = conversation;
+    if (conversation.id.startsWith('temp-')) {
+      try {
+        const response = await fetch(`${API_URL}/messages/conversation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employeeId: CURRENT_USER_ID,
+            clientId: conversation.clientId,
+          }),
+        });
+        
+        if (response.ok) {
+          const newConv = await response.json();
+          actualConversation = {
+            ...conversation,
+            id: newConv.id,
+          };
+          
+          // Update conversations list with real ID
+          setConversations(prev =>
+            prev.map(c => c.id === conversation.id ? actualConversation : c)
+          );
+        }
+      } catch (error) {
+        console.error('Error creating conversation:', error);
+        toast.error('Failed to create conversation');
+        return;
+      }
+    }
+
+    setSelectedConversation(actualConversation);
     
     // Join new conversation room
-    joinConversation(conversation.id);
+    joinConversation(actualConversation.id);
 
     // Load messages
     try {
-      await loadMessages(conversation.id);
+      await loadMessages(actualConversation.id);
       
       // Mark as read
-      await markConversationAsRead(conversation.id);
+      await markConversationAsRead(actualConversation.id);
       
       // Update unread count locally
       setConversations(prev =>
         prev.map(conv =>
-          conv.id === conversation.id ? { ...conv, unreadCount: 0 } : conv
+          conv.id === actualConversation.id ? { ...conv, unreadCount: 0 } : conv
         )
       );
     } catch (error) {
       console.error('Error loading messages:', error);
-      toast.error('Failed to load messages');
+      // Don't show error for new conversations
+      if (!conversation.id.startsWith('temp-')) {
+        toast.error('Failed to load messages');
+      }
     }
   };
 
