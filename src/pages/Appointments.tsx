@@ -25,7 +25,6 @@ import { useState, useEffect } from 'react';
 import { Plus, Clock, User, MapPin, Phone, Video, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useClients } from '@/hooks/useClients';
 import { useAppointments } from '@/hooks/useAppointments';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
@@ -63,6 +62,12 @@ interface Employee {
   email: string;
 }
 
+interface Client {
+  id: string;
+  name: string;
+  company?: string;
+}
+
 const typeConfig = {
   'in-person': { label: 'In Person', icon: MapPin, className: 'bg-accent/10 text-accent' },
   'video': { label: 'Video Call', icon: Video, className: 'bg-primary/10 text-primary' },
@@ -76,14 +81,15 @@ const statusConfig = {
   'cancelled': { label: 'Cancelled', className: 'bg-red-100 text-red-800' },
 };
 
+// Appointments page - uses real API data
 export default function Appointments() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const { toast } = useToast();
-  const { data: clients = [] } = useClients();
   
   // Use the appointments hook
   const {
@@ -94,24 +100,23 @@ export default function Appointments() {
     cancelAppointment: cancelAppointmentAPI,
     startAppointment,
     completeAppointment: completeAppointmentAPI,
-    fetchTodayAppointments,
   } = useAppointments();
 
-  // Fetch employees from database
+  // Fetch employees and clients directly from API (not mock service)
   useEffect(() => {
-    const fetchEmployees = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`${API_URL}/employees`);
-        if (response.ok) {
-          const data = await response.json();
-          setEmployees(data);
-        }
+        const [empRes, clientRes] = await Promise.all([
+          fetch(`${API_URL}/employees`),
+          fetch(`${API_URL}/clients`),
+        ]);
+        if (empRes.ok) setEmployees(await empRes.json());
+        if (clientRes.ok) setClients(await clientRes.json());
       } catch (error) {
-        console.error('Error fetching employees:', error);
-        setEmployees([]);
+        console.error('Error fetching data:', error);
       }
     };
-    fetchEmployees();
+    fetchData();
   }, []);
 
   const [appointmentForm, setAppointmentForm] = useState<AppointmentForm>({
