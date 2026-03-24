@@ -280,12 +280,17 @@ export default function Appointments() {
     }
   };
 
-  // Filter appointments for today
-  const todayAppointments = appointments.filter(appointment => {
+  // Filter appointments for selected date (defaults to today)
+  const selectedDate = date || new Date();
+  const selectedDateAppointments = appointments.filter(appointment => {
     const appointmentDate = new Date(appointment.date);
-    const today = new Date();
-    return appointmentDate.toDateString() === today.toDateString();
+    return appointmentDate.toDateString() === selectedDate.toDateString();
   });
+
+  const isToday = selectedDate.toDateString() === new Date().toDateString();
+  const dateLabel = isToday
+    ? "Today's Schedule"
+    : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   const handleCancelAppointment = async (id: string) => {
     if (confirm('Are you sure you want to cancel this appointment?')) {
@@ -441,10 +446,10 @@ export default function Appointments() {
             </CardContent>
           </Card>
 
-          {/* Today's Appointments */}
+          {/* Appointments for Selected Date */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Today's Schedule</CardTitle>
+              <CardTitle>{dateLabel}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {appointmentsLoading ? (
@@ -452,14 +457,14 @@ export default function Appointments() {
                   <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
                   <p className="text-muted-foreground">Loading appointments...</p>
                 </div>
-              ) : todayAppointments.length === 0 ? (
+              ) : selectedDateAppointments.length === 0 ? (
                 <div className="text-center py-8">
                   <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold">No appointments today</h3>
+                  <h3 className="text-lg font-semibold">No appointments {isToday ? 'today' : 'on this day'}</h3>
                   <p className="text-muted-foreground">Schedule your first appointment to get started</p>
                 </div>
               ) : (
-                todayAppointments.map((appointment) => {
+                selectedDateAppointments.map((appointment) => {
                 const TypeIcon = typeConfig[appointment.type].icon;
                 const status = appointment.status || 'scheduled';
                 const isCompleted = status === 'completed';
