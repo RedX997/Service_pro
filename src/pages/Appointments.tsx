@@ -696,44 +696,36 @@ export default function Appointments() {
               />
             </div>
             
-            {/* Conditional fields based on meeting type */}
-            {appointmentForm.type === 'video' && (
-              <div className="grid gap-2">
-                <Label htmlFor="meetingLink">Video Call Link (Optional)</Label>
-                <Input
-                  id="meetingLink"
-                  type="url"
-                  placeholder="https://meet.google.com/..."
-                  value={appointmentForm.meetingLink}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, meetingLink: e.target.value })}
-                />
-              </div>
-            )}
-            
-            {appointmentForm.type === 'phone' && (
-              <div className="grid gap-2">
-                <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={appointmentForm.phoneNumber}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, phoneNumber: e.target.value })}
-                />
-              </div>
-            )}
-            
-            {appointmentForm.type === 'in-person' && (
-              <div className="grid gap-2">
-                <Label htmlFor="location">Location (Optional)</Label>
-                <Input
-                  id="location"
-                  placeholder="Office - Conference Room A"
-                  value={appointmentForm.location}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, location: e.target.value })}
-                />
-              </div>
-            )}
+            {/* Always show all three optional fields */}
+            <div className="grid gap-2">
+              <Label htmlFor="location">Location (Optional)</Label>
+              <Input
+                id="location"
+                placeholder="Office - Conference Room A"
+                value={appointmentForm.location}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, location: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="+91 98765 43210"
+                value={appointmentForm.phoneNumber}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, phoneNumber: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="meetingLink">Meeting Link (Optional)</Label>
+              <Input
+                id="meetingLink"
+                type="url"
+                placeholder="https://meet.google.com/..."
+                value={appointmentForm.meetingLink}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, meetingLink: e.target.value })}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -888,44 +880,36 @@ export default function Appointments() {
               />
             </div>
             
-            {/* Conditional fields */}
-            {appointmentForm.type === 'video' && (
-              <div className="grid gap-2">
-                <Label htmlFor="reschedule-meetingLink">Video Call Link (Optional)</Label>
-                <Input
-                  id="reschedule-meetingLink"
-                  type="url"
-                  placeholder="https://meet.google.com/..."
-                  value={appointmentForm.meetingLink}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, meetingLink: e.target.value })}
-                />
-              </div>
-            )}
-            
-            {appointmentForm.type === 'phone' && (
-              <div className="grid gap-2">
-                <Label htmlFor="reschedule-phoneNumber">Phone Number (Optional)</Label>
-                <Input
-                  id="reschedule-phoneNumber"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={appointmentForm.phoneNumber}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, phoneNumber: e.target.value })}
-                />
-              </div>
-            )}
-            
-            {appointmentForm.type === 'in-person' && (
-              <div className="grid gap-2">
-                <Label htmlFor="reschedule-location">Location (Optional)</Label>
-                <Input
-                  id="reschedule-location"
-                  placeholder="Office - Conference Room A"
-                  value={appointmentForm.location}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, location: e.target.value })}
-                />
-              </div>
-            )}
+            {/* Always show all three optional fields */}
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-location">Location (Optional)</Label>
+              <Input
+                id="reschedule-location"
+                placeholder="Office - Conference Room A"
+                value={appointmentForm.location}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, location: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-phoneNumber">Phone Number (Optional)</Label>
+              <Input
+                id="reschedule-phoneNumber"
+                type="tel"
+                placeholder="+91 98765 43210"
+                value={appointmentForm.phoneNumber}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, phoneNumber: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-meetingLink">Meeting Link (Optional)</Label>
+              <Input
+                id="reschedule-meetingLink"
+                type="url"
+                placeholder="https://meet.google.com/..."
+                value={appointmentForm.meetingLink}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, meetingLink: e.target.value })}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button

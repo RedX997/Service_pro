@@ -43,7 +43,7 @@ const menuItems: MenuItem[] = [
   { title: 'Clients', url: '/clients', icon: Users, roles: ['super_admin', 'manager', 'receptionist'] },
   { title: 'Messages', url: '/messages', icon: MessageSquare, roles: ['manager', 'receptionist'] },
   { title: 'Time Tracking', url: '/time-tracking', icon: Clock, roles: ['manager'] },
-  { title: 'Appointments', url: '/appointments', icon: Calendar, roles: ['receptionist', 'manager'] },
+  { title: 'Appointments', url: '/appointments', icon: Calendar, roles: ['super_admin', 'receptionist', 'manager'] },
   { title: 'Employees', url: '/employees', icon: UserCheck, roles: ['super_admin', 'manager'] },
   { title: 'Departments', url: '/departments', icon: Building2, roles: ['super_admin'] },
   { title: 'Reports', url: '/reports', icon: FileText, roles: ['super_admin', 'manager'] },
