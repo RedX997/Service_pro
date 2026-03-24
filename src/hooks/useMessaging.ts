@@ -83,10 +83,13 @@ export function useMessaging(userId: string, userType: 'employee' | 'client') {
     // Listen for new messages
     newSocket.on('message:new', (message: Message) => {
       console.log('📨 New message received:', message);
-      setMessages((prev) => [...prev, message]);
       
-      // Auto-mark as delivered if we're the recipient
+      // Only add message if it's NOT from us (to avoid duplicates)
+      // We already added our own messages optimistically in sendMessage
       if (message.senderId !== userId) {
+        setMessages((prev) => [...prev, message]);
+        
+        // Auto-mark as delivered since we received it
         markAsDelivered(message.id, message.conversationId);
       }
     });
@@ -259,13 +262,14 @@ export function useMessaging(userId: string, userType: 'employee' | 'client') {
 
       const message = await response.json();
       
-      // Emit via Socket.io for real-time delivery
+      // Add to local state immediately (optimistic update)
+      setMessages((prev) => [...prev, message]);
+
+      // Emit via Socket.io for real-time delivery to OTHER users
+      // Don't emit back to ourselves - we already added it above
       if (socket) {
         socket.emit('message:send', message);
       }
-
-      // Add to local state
-      setMessages((prev) => [...prev, message]);
 
       return message;
     } catch (error) {
