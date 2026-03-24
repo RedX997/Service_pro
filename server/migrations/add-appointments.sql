@@ -1,5 +1,7 @@
 -- Add Appointments Table
+-- ⚠️ SAFE MIGRATION - ONLY ADDS NEW TABLE, DOES NOT MODIFY OR DELETE EXISTING DATA
 -- This migration creates the appointments table for scheduling meetings
+-- All existing tables (Client, Employee, User, etc.) remain untouched
 
 CREATE TABLE IF NOT EXISTS "Appointment" (
     "id" TEXT NOT NULL PRIMARY KEY,
