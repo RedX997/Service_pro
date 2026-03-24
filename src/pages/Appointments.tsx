@@ -26,17 +26,9 @@ import { Plus, Clock, User, MapPin, Phone, Video, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useClients } from '@/hooks/useClients';
-import { LocalStorage, STORAGE_KEYS } from '@/lib/storage';
+import { useAppointments } from '@/hooks/useAppointments';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-
-// Initial appointments for first-time users
-const initialAppointments = [
-  { id: '1', client: 'ABC Enterprises', contact: 'Rajesh Kumar', time: '10:00 AM', duration: '1h', type: 'in-person' as const, purpose: 'GST Consultation', assignedTo: 'Ankit Sharma', date: new Date().toISOString(), status: 'scheduled' as const, location: 'Office - Conference Room A' },
-  { id: '2', client: 'XYZ Solutions', contact: 'Priya Sharma', time: '11:30 AM', duration: '30m', type: 'video' as const, purpose: 'Document Review', assignedTo: 'Priya Mehta', date: new Date().toISOString(), status: 'scheduled' as const, meetingLink: 'https://meet.google.com/abc-defg-hij' },
-  { id: '3', client: 'Patel & Associates', contact: 'Amit Patel', time: '02:00 PM', duration: '1h', type: 'phone' as const, purpose: 'Tax Planning Discussion', assignedTo: 'Rahul Verma', date: new Date().toISOString(), status: 'scheduled' as const, phoneNumber: '+91 98765 43210' },
-  { id: '4', client: 'Global Traders', contact: 'Sunita Verma', time: '04:00 PM', duration: '45m', type: 'in-person' as const, purpose: 'Annual Audit Meeting', assignedTo: 'Kavita Reddy', date: new Date().toISOString(), status: 'scheduled' as const, location: 'Client Office' },
-];
 
 const appointmentTypes = [
   { value: 'in-person', label: 'In Person' },
@@ -58,7 +50,7 @@ interface AppointmentForm {
   duration: string;
   type: 'in-person' | 'video' | 'phone';
   purpose: string;
-  assignedTo: string;
+  employeeId: string;
   notes: string;
   meetingLink?: string;
   location?: string;
@@ -89,10 +81,21 @@ export default function Appointments() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const { toast } = useToast();
   const { data: clients = [] } = useClients();
+  
+  // Use the appointments hook
+  const {
+    appointments,
+    loading: appointmentsLoading,
+    createAppointment,
+    updateAppointment,
+    cancelAppointment: cancelAppointmentAPI,
+    startAppointment,
+    completeAppointment: completeAppointmentAPI,
+    fetchTodayAppointments,
+  } = useAppointments();
 
   // Fetch employees from database
   useEffect(() => {
@@ -105,28 +108,11 @@ export default function Appointments() {
         }
       } catch (error) {
         console.error('Error fetching employees:', error);
-        // Fallback to empty array
         setEmployees([]);
       }
     };
     fetchEmployees();
   }, []);
-
-  // Load appointments from localStorage on component mount
-  const [appointmentsList, setAppointmentsList] = useState(() => {
-    const saved = LocalStorage.get(STORAGE_KEYS.APPOINTMENTS, []);
-    // If no saved appointments, use initial data
-    if (saved.length === 0) {
-      LocalStorage.set(STORAGE_KEYS.APPOINTMENTS, initialAppointments);
-      return initialAppointments;
-    }
-    return saved;
-  });
-
-  // Save to localStorage whenever appointments change
-  useEffect(() => {
-    LocalStorage.set(STORAGE_KEYS.APPOINTMENTS, appointmentsList);
-  }, [appointmentsList]);
 
   const [appointmentForm, setAppointmentForm] = useState<AppointmentForm>({
     clientId: '',
@@ -136,7 +122,7 @@ export default function Appointments() {
     duration: '1h',
     type: 'in-person',
     purpose: '',
-    assignedTo: '',
+    employeeId: '',
     notes: '',
     meetingLink: '',
     location: '',
@@ -152,7 +138,7 @@ export default function Appointments() {
       duration: '1h',
       type: 'in-person',
       purpose: '',
-      assignedTo: '',
+      employeeId: '',
       notes: '',
       meetingLink: '',
       location: '',
@@ -160,18 +146,20 @@ export default function Appointments() {
     });
   };
 
-  const checkConflict = (date: string, time: string, duration: string, assignedTo: string, excludeId?: string) => {
+  const checkConflict = (date: string, time: string, duration: string, employeeId: string, excludeId?: string) => {
     const newStart = new Date(`${date}T${time}`);
     const durationMinutes = parseDuration(duration);
     const newEnd = new Date(newStart.getTime() + durationMinutes * 60000);
 
-    return appointmentsList.some(apt => {
+    return appointments.some(apt => {
       if (apt.id === excludeId) return false; // Skip current appointment when rescheduling
-      if (apt.assignedTo !== assignedTo) return false; // Only check same employee
-      if (apt.date !== date) return false; // Only check same date
+      if (apt.employeeId !== employeeId) return false; // Only check same employee
+      
+      const aptDate = new Date(apt.date).toISOString().split('T')[0];
+      if (aptDate !== date) return false; // Only check same date
       if (apt.status === 'cancelled') return false; // Skip cancelled appointments
 
-      const aptStart = new Date(`${apt.date}T${convertTo24Hour(apt.time)}`);
+      const aptStart = new Date(`${aptDate}T${apt.time}`);
       const aptDurationMinutes = parseDuration(apt.duration);
       const aptEnd = new Date(aptStart.getTime() + aptDurationMinutes * 60000);
 
@@ -234,7 +222,7 @@ export default function Appointments() {
       return;
     }
 
-    if (!appointmentForm.assignedTo) {
+    if (!appointmentForm.employeeId) {
       toast({
         title: "Error",
         description: "Please assign to an employee",
@@ -244,86 +232,53 @@ export default function Appointments() {
     }
 
     // Check for conflicts
-    if (checkConflict(appointmentForm.date, appointmentForm.time, appointmentForm.duration, appointmentForm.assignedTo)) {
+    if (checkConflict(appointmentForm.date, appointmentForm.time, appointmentForm.duration, appointmentForm.employeeId)) {
+      const employee = employees.find(e => e.id === appointmentForm.employeeId);
       toast({
         title: "Scheduling Conflict",
-        description: `${appointmentForm.assignedTo} already has an appointment at this time`,
+        description: `${employee?.name || 'Employee'} already has an appointment at this time`,
         variant: "destructive",
       });
       return;
     }
 
-    setIsLoading(true);
-
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     try {
-      const selectedClient = clients.find(c => c.id === appointmentForm.clientId);
-      
-      // Convert 24-hour time to 12-hour format for display
-      const timeObj = new Date(`2000-01-01T${appointmentForm.time}`);
-      const displayTime = timeObj.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-
-      const newAppointment = {
-        id: Date.now().toString(),
-        client: selectedClient?.name || 'Unknown Client',
-        contact: appointmentForm.contactPerson.trim(),
-        time: displayTime,
+      await createAppointment({
+        clientId: appointmentForm.clientId,
+        employeeId: appointmentForm.employeeId,
+        contactPerson: appointmentForm.contactPerson.trim(),
+        date: appointmentForm.date,
+        time: appointmentForm.time,
         duration: appointmentForm.duration,
         type: appointmentForm.type,
         purpose: appointmentForm.purpose.trim(),
-        assignedTo: appointmentForm.assignedTo,
-        date: appointmentForm.date,
-        notes: appointmentForm.notes.trim(),
-        status: 'scheduled' as AppointmentStatus,
+        notes: appointmentForm.notes.trim() || undefined,
         meetingLink: appointmentForm.meetingLink?.trim() || undefined,
         location: appointmentForm.location?.trim() || undefined,
         phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
-      };
+      });
 
-      // Add to state (will automatically save to localStorage via useEffect)
-      setAppointmentsList([...appointmentsList, newAppointment]);
       resetForm();
       setIsAddDialogOpen(false);
-      
-      toast({
-        title: "Success",
-        description: "Appointment scheduled successfully",
-      });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to schedule appointment",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      // Error already handled by hook
     }
   };
 
   // Filter appointments for today
-  const todayAppointments = appointmentsList.filter(appointment => {
-    if (!appointment.date) return true; // Show all if no date
+  const todayAppointments = appointments.filter(appointment => {
     const appointmentDate = new Date(appointment.date);
     const today = new Date();
     return appointmentDate.toDateString() === today.toDateString();
   });
 
-  const handleCancelAppointment = (id: string) => {
+  const handleCancelAppointment = async (id: string) => {
     if (confirm('Are you sure you want to cancel this appointment?')) {
-      const updated = appointmentsList.map(apt =>
-        apt.id === id ? { ...apt, status: 'cancelled' as AppointmentStatus } : apt
-      );
-      setAppointmentsList(updated);
-      toast({
-        title: "Success",
-        description: "Appointment cancelled successfully",
-      });
+      try {
+        await cancelAppointmentAPI(id);
+      } catch (error) {
+        // Error already handled by hook
+      }
     }
   };
 
@@ -331,16 +286,16 @@ export default function Appointments() {
     setSelectedAppointment(appointment);
     
     // Pre-fill form with appointment data
-    const time24h = convertTo24Hour(appointment.time);
+    const appointmentDate = new Date(appointment.date).toISOString().split('T')[0];
     setAppointmentForm({
-      clientId: clients.find(c => c.name === appointment.client)?.id || '',
-      contactPerson: appointment.contact,
-      date: appointment.date.split('T')[0],
-      time: time24h,
+      clientId: appointment.clientId,
+      contactPerson: appointment.contactPerson,
+      date: appointmentDate,
+      time: appointment.time,
       duration: appointment.duration,
       type: appointment.type,
       purpose: appointment.purpose,
-      assignedTo: appointment.assignedTo,
+      employeeId: appointment.employeeId,
       notes: appointment.notes || '',
       meetingLink: appointment.meetingLink || '',
       location: appointment.location || '',
@@ -355,7 +310,7 @@ export default function Appointments() {
 
     // Validation (same as add)
     if (!appointmentForm.clientId || !appointmentForm.contactPerson.trim() || 
-        !appointmentForm.time || !appointmentForm.purpose.trim() || !appointmentForm.assignedTo) {
+        !appointmentForm.time || !appointmentForm.purpose.trim() || !appointmentForm.employeeId) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -366,109 +321,79 @@ export default function Appointments() {
 
     // Check for conflicts (exclude current appointment)
     if (checkConflict(appointmentForm.date, appointmentForm.time, appointmentForm.duration, 
-                      appointmentForm.assignedTo, selectedAppointment.id)) {
+                      appointmentForm.employeeId, selectedAppointment.id)) {
+      const employee = employees.find(e => e.id === appointmentForm.employeeId);
       toast({
         title: "Scheduling Conflict",
-        description: `${appointmentForm.assignedTo} already has an appointment at this time`,
+        description: `${employee?.name || 'Employee'} already has an appointment at this time`,
         variant: "destructive",
       });
       return;
     }
 
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     try {
-      const selectedClient = clients.find(c => c.id === appointmentForm.clientId);
-      const timeObj = new Date(`2000-01-01T${appointmentForm.time}`);
-      const displayTime = timeObj.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
+      await updateAppointment(selectedAppointment.id, {
+        clientId: appointmentForm.clientId,
+        employeeId: appointmentForm.employeeId,
+        contactPerson: appointmentForm.contactPerson.trim(),
+        date: appointmentForm.date,
+        time: appointmentForm.time,
+        duration: appointmentForm.duration,
+        type: appointmentForm.type,
+        purpose: appointmentForm.purpose.trim(),
+        notes: appointmentForm.notes.trim() || undefined,
+        meetingLink: appointmentForm.meetingLink?.trim() || undefined,
+        location: appointmentForm.location?.trim() || undefined,
+        phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
       });
 
-      const updated = appointmentsList.map(apt =>
-        apt.id === selectedAppointment.id
-          ? {
-              ...apt,
-              client: selectedClient?.name || apt.client,
-              contact: appointmentForm.contactPerson.trim(),
-              time: displayTime,
-              duration: appointmentForm.duration,
-              type: appointmentForm.type,
-              purpose: appointmentForm.purpose.trim(),
-              assignedTo: appointmentForm.assignedTo,
-              date: appointmentForm.date,
-              notes: appointmentForm.notes.trim(),
-              meetingLink: appointmentForm.meetingLink?.trim() || undefined,
-              location: appointmentForm.location?.trim() || undefined,
-              phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
-              status: 'scheduled' as AppointmentStatus,
-            }
-          : apt
-      );
-
-      setAppointmentsList(updated);
       resetForm();
       setIsRescheduleDialogOpen(false);
       setSelectedAppointment(null);
-      
-      toast({
-        title: "Success",
-        description: "Appointment rescheduled successfully",
-      });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reschedule appointment",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      // Error already handled by hook
     }
   };
 
-  const handleStartMeeting = (appointment: any) => {
-    // Update status to in-progress
-    const updated = appointmentsList.map(apt =>
-      apt.id === appointment.id ? { ...apt, status: 'in-progress' as AppointmentStatus } : apt
-    );
-    setAppointmentsList(updated);
+  const handleStartMeeting = async (appointment: any) => {
+    try {
+      // Update status to in-progress
+      await startAppointment(appointment.id);
 
-    // Handle different meeting types
-    if (appointment.type === 'video') {
-      const link = appointment.meetingLink || 'https://meet.google.com/new';
-      window.open(link, '_blank');
-      toast({
-        title: "Video Call Started",
-        description: "Opening video call in new tab",
-      });
-    } else if (appointment.type === 'phone') {
-      const phone = appointment.phoneNumber || appointment.contact;
-      toast({
-        title: "Phone Call",
-        description: `Call: ${phone}`,
-        duration: 5000,
-      });
-    } else {
-      const location = appointment.location || 'Office';
-      toast({
-        title: "In-Person Meeting",
-        description: `Location: ${location}`,
-        duration: 5000,
-      });
+      // Handle different meeting types
+      if (appointment.type === 'video') {
+        const link = appointment.meetingLink || 'https://meet.google.com/new';
+        window.open(link, '_blank');
+        toast({
+          title: "Video Call Started",
+          description: "Opening video call in new tab",
+        });
+      } else if (appointment.type === 'phone') {
+        const phone = appointment.phoneNumber || appointment.contactPerson;
+        toast({
+          title: "Phone Call",
+          description: `Call: ${phone}`,
+          duration: 5000,
+        });
+      } else {
+        const location = appointment.location || 'Office';
+        toast({
+          title: "In-Person Meeting",
+          description: `Location: ${location}`,
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      // Error already handled by hook
     }
   };
 
-  const handleCompleteAppointment = (id: string) => {
-    const updated = appointmentsList.map(apt =>
-      apt.id === id ? { ...apt, status: 'completed' as AppointmentStatus } : apt
-    );
-    setAppointmentsList(updated);
-    toast({
-      title: "Success",
-      description: "Appointment marked as completed",
-    });
+  const handleCompleteAppointment = async (id: string) => {
+    try {
+      await completeAppointmentAPI(id);
+    } catch (error) {
+      // Error already handled by hook
+    }
   };
 
   return (
@@ -507,7 +432,12 @@ export default function Appointments() {
               <CardTitle>Today's Schedule</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {todayAppointments.length === 0 ? (
+              {appointmentsLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                  <p className="text-muted-foreground">Loading appointments...</p>
+                </div>
+              ) : todayAppointments.length === 0 ? (
                 <div className="text-center py-8">
                   <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold">No appointments today</h3>
@@ -520,6 +450,10 @@ export default function Appointments() {
                 const isCompleted = status === 'completed';
                 const isCancelled = status === 'cancelled';
                 const isInProgress = status === 'in-progress';
+                
+                // Get client and employee names
+                const client = clients.find(c => c.id === appointment.clientId);
+                const employee = employees.find(e => e.id === appointment.employeeId);
                 
                 return (
                   <div
@@ -538,12 +472,12 @@ export default function Appointments() {
                           <TypeIcon className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="font-semibold">{appointment.client}</h3>
+                          <h3 className="font-semibold">{client?.name || 'Unknown Client'}</h3>
                           <p className="text-sm text-muted-foreground">{appointment.purpose}</p>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <User className="h-3 w-3" />
-                              {appointment.contact}
+                              {appointment.contactPerson}
                             </div>
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
@@ -562,7 +496,7 @@ export default function Appointments() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          with {appointment.assignedTo}
+                          with {employee?.name || 'Unknown Employee'}
                         </p>
                       </div>
                     </div>
@@ -721,15 +655,15 @@ export default function Appointments() {
             <div className="grid gap-2">
               <Label htmlFor="assignedTo">Assign To</Label>
               <Select
-                value={appointmentForm.assignedTo}
-                onValueChange={(value) => setAppointmentForm({ ...appointmentForm, assignedTo: value })}
+                value={appointmentForm.employeeId}
+                onValueChange={(value) => setAppointmentForm({ ...appointmentForm, employeeId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
                   {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.name}>
+                    <SelectItem key={employee.id} value={employee.id}>
                       {employee.name}
                     </SelectItem>
                   ))}
@@ -793,12 +727,12 @@ export default function Appointments() {
                 resetForm();
                 setIsAddDialogOpen(false);
               }}
-              disabled={isLoading}
+              disabled={appointmentsLoading}
             >
               Cancel
             </Button>
-            <Button onClick={handleAddAppointment} disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleAddAppointment} disabled={appointmentsLoading}>
+              {appointmentsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Schedule Appointment
             </Button>
           </DialogFooter>
@@ -913,15 +847,15 @@ export default function Appointments() {
             <div className="grid gap-2">
               <Label htmlFor="reschedule-assignedTo">Assign To</Label>
               <Select
-                value={appointmentForm.assignedTo}
-                onValueChange={(value) => setAppointmentForm({ ...appointmentForm, assignedTo: value })}
+                value={appointmentForm.employeeId}
+                onValueChange={(value) => setAppointmentForm({ ...appointmentForm, employeeId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
                   {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.name}>
+                    <SelectItem key={employee.id} value={employee.id}>
                       {employee.name}
                     </SelectItem>
                   ))}
@@ -986,12 +920,12 @@ export default function Appointments() {
                 setIsRescheduleDialogOpen(false);
                 setSelectedAppointment(null);
               }}
-              disabled={isLoading}
+              disabled={appointmentsLoading}
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateAppointment} disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleUpdateAppointment} disabled={appointmentsLoading}>
+              {appointmentsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Appointment
             </Button>
           </DialogFooter>
