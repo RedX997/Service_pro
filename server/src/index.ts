@@ -25,6 +25,7 @@ import taskRoutes from './routes/tasks.js';
 import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import testNotificationRoutes from './routes/test-notification.js';
+import appointmentRoutes from './routes/appointments.js';
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -87,6 +88,8 @@ app.use('/api/notifications', notificationRoutes);
 console.log('Notification routes registered at /api/notifications');
 app.use('/api/test-notification', testNotificationRoutes);
 console.log('Test notification route registered at /api/test-notification');
+app.use('/api/appointments', appointmentRoutes);
+console.log('Appointment routes registered at /api/appointments');
 
 httpServer.listen(port, () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);

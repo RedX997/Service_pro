@@ -172,6 +172,35 @@ model Task {
   assigner    Employee? @relation("CreatedTasks", fields: [assignedBy], references: [id])
   client      Client?  @relation(fields: [clientId], references: [id])
 }
+
+// Appointment Model
+model Appointment {
+  id            String   @id @default(uuid())
+  clientId      String
+  employeeId    String
+  contactPerson String
+  date          DateTime
+  time          String   // Stored as "10:00 AM" format
+  duration      String   // "1h", "30m", etc.
+  type          String   // "in-person", "video", "phone"
+  purpose       String
+  notes         String?
+  status        String   @default("scheduled") // "scheduled", "in-progress", "completed", "cancelled"
+  
+  // Optional fields based on type
+  meetingLink   String?  // For video calls
+  location      String?  // For in-person meetings
+  phoneNumber   String?  // For phone calls
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([clientId])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+}
+
 // RBAC (Role-Based Access Control) Models
 model Role {
   id         Int      @id @default(autoincrement())
