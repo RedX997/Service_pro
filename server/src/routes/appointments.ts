@@ -1,5 +1,6 @@
 import express from 'express';
 import { prisma } from '../lib/prisma.js';
+import { notify } from '../helpers/notify.js';
 
 const router = express.Router();
 
@@ -174,6 +175,26 @@ router.post('/', async (req, res) => {
     });
 
     console.log('✅ Appointment created:', appointment.id);
+
+    // Send notifications to all roles (fire-and-forget, don't block response)
+    const clientName = appointment.contactPerson || clientId;
+    const appointmentDate = new Date(date).toLocaleDateString();
+    const notifyMessage = `Appointment with ${clientName} on ${appointmentDate} at ${time} for ${purpose}`;
+
+    Promise.all(
+      ['super_admin', 'manager', 'receptionist'].map(role =>
+        notify({
+          role,
+          type: 'appointment',
+          title: 'New Appointment Scheduled',
+          message: notifyMessage,
+          data: { appointmentId: appointment.id },
+          actionUrl: '/appointments',
+          priority: 'normal',
+        })
+      )
+    ).catch(err => console.error('⚠️ Notification error (non-fatal):', err.message));
+
     res.status(201).json(appointment);
   } catch (error: any) {
     console.error('❌ Error creating appointment:', error.message);
