@@ -109,19 +109,39 @@ export function useAppointments() {
 
   // Create appointment
   const createAppointment = async (data: CreateAppointmentData) => {
+    console.log('🔍 useAppointments.createAppointment called');
+    console.log('Data received:', data);
+    console.log('API_URL:', API_URL);
+    
     try {
-      const response = await fetch(`${API_URL}/appointments`, {
+      const url = `${API_URL}/appointments`;
+      console.log('Fetching:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (!response.ok) {
-        const error = await response.json();
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        let error;
+        try {
+          error = JSON.parse(errorText);
+        } catch {
+          error = { error: errorText };
+        }
+        
         throw new Error(error.error || 'Failed to create appointment');
       }
 
       const newAppointment = await response.json();
+      console.log('✅ Appointment created successfully:', newAppointment);
       
       // Optimistically update local state
       setAppointments(prev => [...prev, newAppointment]);
@@ -133,6 +153,7 @@ export function useAppointments() {
 
       return newAppointment;
     } catch (err: any) {
+      console.error('❌ Error in createAppointment:', err);
       toast({
         title: 'Error',
         description: err.message,

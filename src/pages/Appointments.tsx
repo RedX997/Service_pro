@@ -185,6 +185,9 @@ export default function Appointments() {
   };
 
   const handleAddAppointment = async () => {
+    console.log('🔍 handleAddAppointment called');
+    console.log('Form data:', appointmentForm);
+    
     // Validation
     if (!appointmentForm.clientId) {
       toast({
@@ -242,25 +245,32 @@ export default function Appointments() {
       return;
     }
 
+    const appointmentData = {
+      clientId: appointmentForm.clientId,
+      employeeId: appointmentForm.employeeId,
+      contactPerson: appointmentForm.contactPerson.trim(),
+      date: appointmentForm.date,
+      time: appointmentForm.time,
+      duration: appointmentForm.duration,
+      type: appointmentForm.type,
+      purpose: appointmentForm.purpose.trim(),
+      notes: appointmentForm.notes.trim() || undefined,
+      meetingLink: appointmentForm.meetingLink?.trim() || undefined,
+      location: appointmentForm.location?.trim() || undefined,
+      phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
+    };
+
+    console.log('📤 Sending appointment data:', appointmentData);
+    console.log('API URL:', import.meta.env.VITE_API_BASE_URL);
+
     try {
-      await createAppointment({
-        clientId: appointmentForm.clientId,
-        employeeId: appointmentForm.employeeId,
-        contactPerson: appointmentForm.contactPerson.trim(),
-        date: appointmentForm.date,
-        time: appointmentForm.time,
-        duration: appointmentForm.duration,
-        type: appointmentForm.type,
-        purpose: appointmentForm.purpose.trim(),
-        notes: appointmentForm.notes.trim() || undefined,
-        meetingLink: appointmentForm.meetingLink?.trim() || undefined,
-        location: appointmentForm.location?.trim() || undefined,
-        phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
-      });
+      const result = await createAppointment(appointmentData);
+      console.log('✅ Appointment created:', result);
 
       resetForm();
       setIsAddDialogOpen(false);
     } catch (error) {
+      console.error('❌ Error creating appointment:', error);
       // Error already handled by hook
     }
   };
