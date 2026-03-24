@@ -94,6 +94,8 @@ router.get('/:id', async (req, res) => {
 // Create appointment
 router.post('/', async (req, res) => {
   try {
+    console.log('📅 POST /appointments - body:', JSON.stringify(req.body));
+    
     const {
       clientId,
       employeeId,
@@ -111,7 +113,25 @@ router.post('/', async (req, res) => {
 
     // Validation
     if (!clientId || !employeeId || !contactPerson || !date || !time || !duration || !type || !purpose) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      const missing = { clientId, employeeId, contactPerson, date, time, duration, type, purpose };
+      const missingFields = Object.entries(missing).filter(([,v]) => !v).map(([k]) => k);
+      console.log('❌ Missing fields:', missingFields);
+      return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+    }
+
+    // Verify clientId and employeeId exist
+    const [clientExists, employeeExists] = await Promise.all([
+      prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }),
+      prisma.employee.findUnique({ where: { id: employeeId }, select: { id: true } }),
+    ]);
+
+    if (!clientExists) {
+      console.log('❌ Client not found:', clientId);
+      return res.status(400).json({ error: `Client not found: ${clientId}` });
+    }
+    if (!employeeExists) {
+      console.log('❌ Employee not found:', employeeId);
+      return res.status(400).json({ error: `Employee not found: ${employeeId}` });
     }
 
     // Check for conflicts
@@ -124,22 +144,17 @@ router.post('/', async (req, res) => {
     const existingAppointments = await prisma.appointment.findMany({
       where: {
         employeeId,
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-        status: {
-          not: 'cancelled',
-        },
+        date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'cancelled' },
       },
     });
 
-    // Simple conflict check (can be enhanced)
     const hasConflict = existingAppointments.some(apt => apt.time === time);
     if (hasConflict) {
       return res.status(409).json({ error: 'Time slot already booked for this employee' });
     }
 
+    const now = new Date();
     const appointment = await prisma.appointment.create({
       data: {
         clientId,
@@ -154,12 +169,15 @@ router.post('/', async (req, res) => {
         meetingLink: meetingLink || null,
         location: location || null,
         phoneNumber: phoneNumber || null,
+        updatedAt: now,
       },
     });
 
+    console.log('✅ Appointment created:', appointment.id);
     res.status(201).json(appointment);
   } catch (error: any) {
-    console.error('Error creating appointment:', error);
+    console.error('❌ Error creating appointment:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
