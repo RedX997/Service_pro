@@ -280,7 +280,29 @@ export default function Appointments() {
     }
   };
 
-  // Filter appointments for selected date (defaults to today)
+  // Build sets of dates that have active (non-done) vs all-done appointments
+  const datesWithActiveAppointments = new Set<string>();
+  const datesWithAllDoneAppointments = new Set<string>();
+
+  appointments.forEach(apt => {
+    const key = new Date(apt.date).toDateString();
+    if (apt.status === 'cancelled' || apt.status === 'completed') {
+      // Only add to all-done set if no active appointment exists for that day
+      if (!datesWithActiveAppointments.has(key)) {
+        datesWithAllDoneAppointments.add(key);
+      }
+    } else {
+      // Active appointment — remove from all-done set if it was there
+      datesWithAllDoneAppointments.delete(key);
+      datesWithActiveAppointments.add(key);
+    }
+  });
+
+  const activeDays = appointments
+    .filter(apt => apt.status !== 'cancelled' && apt.status !== 'completed')
+    .map(apt => new Date(apt.date));
+
+  const doneDays = [...datesWithAllDoneAppointments].map(d => new Date(d));
   const selectedDate = date || new Date();
   const selectedDateAppointments = appointments.filter(appointment => {
     const appointmentDate = new Date(appointment.date);
@@ -442,6 +464,14 @@ export default function Appointments() {
                 selected={date}
                 onSelect={setDate}
                 className="rounded-md border w-full"
+                modifiers={{
+                  hasActive: activeDays,
+                  allDone: doneDays,
+                }}
+                modifiersClassNames={{
+                  hasActive: 'day-has-active',
+                  allDone: 'day-all-done',
+                }}
               />
             </CardContent>
           </Card>
