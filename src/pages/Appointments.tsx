@@ -28,20 +28,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useClients } from '@/hooks/useClients';
 import { LocalStorage, STORAGE_KEYS } from '@/lib/storage';
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
 // Initial appointments for first-time users
 const initialAppointments = [
-  { id: '1', client: 'ABC Enterprises', contact: 'Rajesh Kumar', time: '10:00 AM', duration: '1h', type: 'in-person' as const, purpose: 'GST Consultation', assignedTo: 'Ankit Sharma', date: new Date().toISOString() },
-  { id: '2', client: 'XYZ Solutions', contact: 'Priya Sharma', time: '11:30 AM', duration: '30m', type: 'video' as const, purpose: 'Document Review', assignedTo: 'Priya Mehta', date: new Date().toISOString() },
-  { id: '3', client: 'Patel & Associates', contact: 'Amit Patel', time: '02:00 PM', duration: '1h', type: 'phone' as const, purpose: 'Tax Planning Discussion', assignedTo: 'Rahul Verma', date: new Date().toISOString() },
-  { id: '4', client: 'Global Traders', contact: 'Sunita Verma', time: '04:00 PM', duration: '45m', type: 'in-person' as const, purpose: 'Annual Audit Meeting', assignedTo: 'Kavita Reddy', date: new Date().toISOString() },
-];
-
-const employees = [
-  'Ankit Sharma',
-  'Priya Mehta', 
-  'Rahul Verma',
-  'Kavita Reddy',
-  'Suresh Kumar'
+  { id: '1', client: 'ABC Enterprises', contact: 'Rajesh Kumar', time: '10:00 AM', duration: '1h', type: 'in-person' as const, purpose: 'GST Consultation', assignedTo: 'Ankit Sharma', date: new Date().toISOString(), status: 'scheduled' as const, location: 'Office - Conference Room A' },
+  { id: '2', client: 'XYZ Solutions', contact: 'Priya Sharma', time: '11:30 AM', duration: '30m', type: 'video' as const, purpose: 'Document Review', assignedTo: 'Priya Mehta', date: new Date().toISOString(), status: 'scheduled' as const, meetingLink: 'https://meet.google.com/abc-defg-hij' },
+  { id: '3', client: 'Patel & Associates', contact: 'Amit Patel', time: '02:00 PM', duration: '1h', type: 'phone' as const, purpose: 'Tax Planning Discussion', assignedTo: 'Rahul Verma', date: new Date().toISOString(), status: 'scheduled' as const, phoneNumber: '+91 98765 43210' },
+  { id: '4', client: 'Global Traders', contact: 'Sunita Verma', time: '04:00 PM', duration: '45m', type: 'in-person' as const, purpose: 'Annual Audit Meeting', assignedTo: 'Kavita Reddy', date: new Date().toISOString(), status: 'scheduled' as const, location: 'Client Office' },
 ];
 
 const appointmentTypes = [
@@ -54,6 +48,8 @@ const durations = [
   '15m', '30m', '45m', '1h', '1h 30m', '2h', '2h 30m', '3h'
 ];
 
+type AppointmentStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+
 interface AppointmentForm {
   clientId: string;
   contactPerson: string;
@@ -64,6 +60,15 @@ interface AppointmentForm {
   purpose: string;
   assignedTo: string;
   notes: string;
+  meetingLink?: string;
+  location?: string;
+  phoneNumber?: string;
+}
+
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
 }
 
 const typeConfig = {
@@ -72,12 +77,40 @@ const typeConfig = {
   'phone': { label: 'Phone Call', icon: Phone, className: 'bg-warning/10 text-warning' },
 };
 
+const statusConfig = {
+  'scheduled': { label: 'Scheduled', className: 'bg-blue-100 text-blue-800' },
+  'in-progress': { label: 'In Progress', className: 'bg-yellow-100 text-yellow-800' },
+  'completed': { label: 'Completed', className: 'bg-green-100 text-green-800' },
+  'cancelled': { label: 'Cancelled', className: 'bg-red-100 text-red-800' },
+};
+
 export default function Appointments() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const { toast } = useToast();
   const { data: clients = [] } = useClients();
+
+  // Fetch employees from database
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await fetch(`${API_URL}/employees`);
+        if (response.ok) {
+          const data = await response.json();
+          setEmployees(data);
+        }
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        // Fallback to empty array
+        setEmployees([]);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   // Load appointments from localStorage on component mount
   const [appointmentsList, setAppointmentsList] = useState(() => {
@@ -105,6 +138,9 @@ export default function Appointments() {
     purpose: '',
     assignedTo: '',
     notes: '',
+    meetingLink: '',
+    location: '',
+    phoneNumber: '',
   });
 
   const resetForm = () => {
@@ -118,7 +154,46 @@ export default function Appointments() {
       purpose: '',
       assignedTo: '',
       notes: '',
+      meetingLink: '',
+      location: '',
+      phoneNumber: '',
     });
+  };
+
+  const checkConflict = (date: string, time: string, duration: string, assignedTo: string, excludeId?: string) => {
+    const newStart = new Date(`${date}T${time}`);
+    const durationMinutes = parseDuration(duration);
+    const newEnd = new Date(newStart.getTime() + durationMinutes * 60000);
+
+    return appointmentsList.some(apt => {
+      if (apt.id === excludeId) return false; // Skip current appointment when rescheduling
+      if (apt.assignedTo !== assignedTo) return false; // Only check same employee
+      if (apt.date !== date) return false; // Only check same date
+      if (apt.status === 'cancelled') return false; // Skip cancelled appointments
+
+      const aptStart = new Date(`${apt.date}T${convertTo24Hour(apt.time)}`);
+      const aptDurationMinutes = parseDuration(apt.duration);
+      const aptEnd = new Date(aptStart.getTime() + aptDurationMinutes * 60000);
+
+      // Check if times overlap
+      return (newStart < aptEnd && newEnd > aptStart);
+    });
+  };
+
+  const parseDuration = (duration: string): number => {
+    const match = duration.match(/(\d+)h?\s*(\d+)?m?/);
+    if (!match) return 60; // Default 1 hour
+    const hours = parseInt(match[1]) || 0;
+    const minutes = parseInt(match[2]) || 0;
+    return hours * 60 + minutes;
+  };
+
+  const convertTo24Hour = (time12h: string): string => {
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') hours = '00';
+    if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+    return `${hours.padStart(2, '0')}:${minutes}`;
   };
 
   const handleAddAppointment = async () => {
@@ -168,6 +243,16 @@ export default function Appointments() {
       return;
     }
 
+    // Check for conflicts
+    if (checkConflict(appointmentForm.date, appointmentForm.time, appointmentForm.duration, appointmentForm.assignedTo)) {
+      toast({
+        title: "Scheduling Conflict",
+        description: `${appointmentForm.assignedTo} already has an appointment at this time`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     // Simulate API call delay
@@ -193,8 +278,12 @@ export default function Appointments() {
         type: appointmentForm.type,
         purpose: appointmentForm.purpose.trim(),
         assignedTo: appointmentForm.assignedTo,
-        date: appointmentForm.date, // Store as ISO string
+        date: appointmentForm.date,
         notes: appointmentForm.notes.trim(),
+        status: 'scheduled' as AppointmentStatus,
+        meetingLink: appointmentForm.meetingLink?.trim() || undefined,
+        location: appointmentForm.location?.trim() || undefined,
+        phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
       };
 
       // Add to state (will automatically save to localStorage via useEffect)
@@ -227,7 +316,9 @@ export default function Appointments() {
 
   const handleCancelAppointment = (id: string) => {
     if (confirm('Are you sure you want to cancel this appointment?')) {
-      const updated = appointmentsList.filter(apt => apt.id !== id);
+      const updated = appointmentsList.map(apt =>
+        apt.id === id ? { ...apt, status: 'cancelled' as AppointmentStatus } : apt
+      );
       setAppointmentsList(updated);
       toast({
         title: "Success",
@@ -236,10 +327,147 @@ export default function Appointments() {
     }
   };
 
-  const handleReschedule = (id: string) => {
+  const handleReschedule = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    
+    // Pre-fill form with appointment data
+    const time24h = convertTo24Hour(appointment.time);
+    setAppointmentForm({
+      clientId: clients.find(c => c.name === appointment.client)?.id || '',
+      contactPerson: appointment.contact,
+      date: appointment.date.split('T')[0],
+      time: time24h,
+      duration: appointment.duration,
+      type: appointment.type,
+      purpose: appointment.purpose,
+      assignedTo: appointment.assignedTo,
+      notes: appointment.notes || '',
+      meetingLink: appointment.meetingLink || '',
+      location: appointment.location || '',
+      phoneNumber: appointment.phoneNumber || '',
+    });
+    
+    setIsRescheduleDialogOpen(true);
+  };
+
+  const handleUpdateAppointment = async () => {
+    if (!selectedAppointment) return;
+
+    // Validation (same as add)
+    if (!appointmentForm.clientId || !appointmentForm.contactPerson.trim() || 
+        !appointmentForm.time || !appointmentForm.purpose.trim() || !appointmentForm.assignedTo) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for conflicts (exclude current appointment)
+    if (checkConflict(appointmentForm.date, appointmentForm.time, appointmentForm.duration, 
+                      appointmentForm.assignedTo, selectedAppointment.id)) {
+      toast({
+        title: "Scheduling Conflict",
+        description: `${appointmentForm.assignedTo} already has an appointment at this time`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const selectedClient = clients.find(c => c.id === appointmentForm.clientId);
+      const timeObj = new Date(`2000-01-01T${appointmentForm.time}`);
+      const displayTime = timeObj.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      const updated = appointmentsList.map(apt =>
+        apt.id === selectedAppointment.id
+          ? {
+              ...apt,
+              client: selectedClient?.name || apt.client,
+              contact: appointmentForm.contactPerson.trim(),
+              time: displayTime,
+              duration: appointmentForm.duration,
+              type: appointmentForm.type,
+              purpose: appointmentForm.purpose.trim(),
+              assignedTo: appointmentForm.assignedTo,
+              date: appointmentForm.date,
+              notes: appointmentForm.notes.trim(),
+              meetingLink: appointmentForm.meetingLink?.trim() || undefined,
+              location: appointmentForm.location?.trim() || undefined,
+              phoneNumber: appointmentForm.phoneNumber?.trim() || undefined,
+              status: 'scheduled' as AppointmentStatus,
+            }
+          : apt
+      );
+
+      setAppointmentsList(updated);
+      resetForm();
+      setIsRescheduleDialogOpen(false);
+      setSelectedAppointment(null);
+      
+      toast({
+        title: "Success",
+        description: "Appointment rescheduled successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reschedule appointment",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartMeeting = (appointment: any) => {
+    // Update status to in-progress
+    const updated = appointmentsList.map(apt =>
+      apt.id === appointment.id ? { ...apt, status: 'in-progress' as AppointmentStatus } : apt
+    );
+    setAppointmentsList(updated);
+
+    // Handle different meeting types
+    if (appointment.type === 'video') {
+      const link = appointment.meetingLink || 'https://meet.google.com/new';
+      window.open(link, '_blank');
+      toast({
+        title: "Video Call Started",
+        description: "Opening video call in new tab",
+      });
+    } else if (appointment.type === 'phone') {
+      const phone = appointment.phoneNumber || appointment.contact;
+      toast({
+        title: "Phone Call",
+        description: `Call: ${phone}`,
+        duration: 5000,
+      });
+    } else {
+      const location = appointment.location || 'Office';
+      toast({
+        title: "In-Person Meeting",
+        description: `Location: ${location}`,
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleCompleteAppointment = (id: string) => {
+    const updated = appointmentsList.map(apt =>
+      apt.id === id ? { ...apt, status: 'completed' as AppointmentStatus } : apt
+    );
+    setAppointmentsList(updated);
     toast({
-      title: "Feature Coming Soon",
-      description: "Reschedule functionality will be available soon",
+      title: "Success",
+      description: "Appointment marked as completed",
     });
   };
 
@@ -288,10 +516,18 @@ export default function Appointments() {
               ) : (
                 todayAppointments.map((appointment) => {
                 const TypeIcon = typeConfig[appointment.type].icon;
+                const status = appointment.status || 'scheduled';
+                const isCompleted = status === 'completed';
+                const isCancelled = status === 'cancelled';
+                const isInProgress = status === 'in-progress';
+                
                 return (
                   <div
                     key={appointment.id}
-                    className="p-4 rounded-lg border hover:shadow-md transition-shadow animate-fade-in"
+                    className={cn(
+                      "p-4 rounded-lg border hover:shadow-md transition-shadow animate-fade-in",
+                      isCancelled && "opacity-60 bg-muted"
+                    )}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-start gap-4">
@@ -317,18 +553,57 @@ export default function Appointments() {
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge className={cn(typeConfig[appointment.type].className)}>
-                          {typeConfig[appointment.type].label}
-                        </Badge>
+                        <div className="flex gap-2">
+                          <Badge className={cn(typeConfig[appointment.type].className)}>
+                            {typeConfig[appointment.type].label}
+                          </Badge>
+                          <Badge className={cn(statusConfig[status].className)}>
+                            {statusConfig[status].label}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           with {appointment.assignedTo}
                         </p>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4 pt-4 border-t">
-                      <Button variant="outline" size="sm" onClick={() => handleReschedule(appointment.id)}>Reschedule</Button>
-                      <Button variant="outline" size="sm" onClick={() => handleCancelAppointment(appointment.id)}>Cancel</Button>
-                      <Button size="sm" className="ml-auto">Start Meeting</Button>
+                      {!isCancelled && !isCompleted && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleReschedule(appointment)}
+                          >
+                            Reschedule
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleCancelAppointment(appointment.id)}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      )}
+                      {isInProgress && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleCompleteAppointment(appointment.id)}
+                          className="ml-auto"
+                        >
+                          Mark Complete
+                        </Button>
+                      )}
+                      {!isCancelled && !isCompleted && !isInProgress && (
+                        <Button 
+                          size="sm" 
+                          className="ml-auto"
+                          onClick={() => handleStartMeeting(appointment)}
+                        >
+                          Start Meeting
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -454,8 +729,8 @@ export default function Appointments() {
                 </SelectTrigger>
                 <SelectContent>
                   {employees.map((employee) => (
-                    <SelectItem key={employee} value={employee}>
-                      {employee}
+                    <SelectItem key={employee.id} value={employee.name}>
+                      {employee.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -471,6 +746,45 @@ export default function Appointments() {
                 rows={3}
               />
             </div>
+            
+            {/* Conditional fields based on meeting type */}
+            {appointmentForm.type === 'video' && (
+              <div className="grid gap-2">
+                <Label htmlFor="meetingLink">Video Call Link (Optional)</Label>
+                <Input
+                  id="meetingLink"
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={appointmentForm.meetingLink}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, meetingLink: e.target.value })}
+                />
+              </div>
+            )}
+            
+            {appointmentForm.type === 'phone' && (
+              <div className="grid gap-2">
+                <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={appointmentForm.phoneNumber}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, phoneNumber: e.target.value })}
+                />
+              </div>
+            )}
+            
+            {appointmentForm.type === 'in-person' && (
+              <div className="grid gap-2">
+                <Label htmlFor="location">Location (Optional)</Label>
+                <Input
+                  id="location"
+                  placeholder="Office - Conference Room A"
+                  value={appointmentForm.location}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, location: e.target.value })}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -486,6 +800,199 @@ export default function Appointments() {
             <Button onClick={handleAddAppointment} disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Schedule Appointment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Appointment Dialog */}
+      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              Update the appointment details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {/* Same form fields as Add Dialog */}
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-client">Client</Label>
+              <Select
+                value={appointmentForm.clientId}
+                onValueChange={(value) => setAppointmentForm({ ...appointmentForm, clientId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-contact">Contact Person</Label>
+              <Input
+                id="reschedule-contact"
+                placeholder="Enter contact person name"
+                value={appointmentForm.contactPerson}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, contactPerson: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-date">Date</Label>
+                <Input
+                  id="reschedule-date"
+                  type="date"
+                  value={appointmentForm.date}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, date: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-time">Time</Label>
+                <Input
+                  id="reschedule-time"
+                  type="time"
+                  value={appointmentForm.time}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-duration">Duration</Label>
+                <Select
+                  value={appointmentForm.duration}
+                  onValueChange={(value) => setAppointmentForm({ ...appointmentForm, duration: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {durations.map((duration) => (
+                      <SelectItem key={duration} value={duration}>
+                        {duration}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-type">Meeting Type</Label>
+                <Select
+                  value={appointmentForm.type}
+                  onValueChange={(value: 'in-person' | 'video' | 'phone') => setAppointmentForm({ ...appointmentForm, type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointmentTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-purpose">Purpose</Label>
+              <Input
+                id="reschedule-purpose"
+                placeholder="Enter meeting purpose"
+                value={appointmentForm.purpose}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, purpose: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-assignedTo">Assign To</Label>
+              <Select
+                value={appointmentForm.assignedTo}
+                onValueChange={(value) => setAppointmentForm({ ...appointmentForm, assignedTo: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.name}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reschedule-notes">Notes (Optional)</Label>
+              <Textarea
+                id="reschedule-notes"
+                placeholder="Add any additional notes"
+                value={appointmentForm.notes}
+                onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })}
+                rows={3}
+              />
+            </div>
+            
+            {/* Conditional fields */}
+            {appointmentForm.type === 'video' && (
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-meetingLink">Video Call Link (Optional)</Label>
+                <Input
+                  id="reschedule-meetingLink"
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={appointmentForm.meetingLink}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, meetingLink: e.target.value })}
+                />
+              </div>
+            )}
+            
+            {appointmentForm.type === 'phone' && (
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-phoneNumber">Phone Number (Optional)</Label>
+                <Input
+                  id="reschedule-phoneNumber"
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  value={appointmentForm.phoneNumber}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, phoneNumber: e.target.value })}
+                />
+              </div>
+            )}
+            
+            {appointmentForm.type === 'in-person' && (
+              <div className="grid gap-2">
+                <Label htmlFor="reschedule-location">Location (Optional)</Label>
+                <Input
+                  id="reschedule-location"
+                  placeholder="Office - Conference Room A"
+                  value={appointmentForm.location}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, location: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetForm();
+                setIsRescheduleDialogOpen(false);
+                setSelectedAppointment(null);
+              }}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateAppointment} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Appointment
             </Button>
           </DialogFooter>
         </DialogContent>
