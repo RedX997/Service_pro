@@ -1,8 +1,8 @@
 import express from 'express'
-import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcrypt'
+import { prisma } from '../lib/prisma.js'
 
 const router = express.Router()
-const prisma = new PrismaClient()
 
 // Login endpoint
 router.post('/login', async (req, res) => {
@@ -22,21 +22,77 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
-    
-    // In a real app, you would hash and compare passwords
-    // For now, we'll do a simple comparison
-    // TODO: Implement proper password hashing (bcrypt)
-    if (user.password !== password) {
-      return res.status(401).json({ error: 'Invalid email or password' })
+
+    // Check account is active
+    if (user.is_active === false) {
+      return res.status(403).json({ error: 'Account is deactivated. Contact your administrator.' })
     }
     
-    // Return user data (excluding password)
+    // Compare with bcrypt (falls back to plain comparison for legacy accounts)
+    let passwordMatch = false;
+    if (user.password.startsWith('$2')) {
+      passwordMatch = await bcrypt.compare(password, user.password);
+    } else {
+      passwordMatch = user.password === password;
+    }
+
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' })
+    }
+
+    // Record login time and create session
+    const ip = req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || null;
+    const now = new Date();
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { last_login_at: now },
+    });
+
+    const session = await prisma.userSession.create({
+      data: { user_id: user.id, logged_in_at: now, ip_address: ip },
+    });
+
+    // Return user data (excluding password) + sessionId for logout tracking
     const { password: _, ...userWithoutPassword } = user
-    res.json(userWithoutPassword)
+    res.json({ ...userWithoutPassword, sessionId: session.id })
     
   } catch (error) {
     console.error('Login error:', error)
     res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Block password changes — credentials are company-managed only
+router.patch('/change-password', (req, res) => {
+  res.status(403).json({ error: 'Password changes are not permitted. Contact your administrator.' })
+})
+router.post('/change-password', (req, res) => {
+  res.status(403).json({ error: 'Password changes are not permitted. Contact your administrator.' })
+})
+
+// Logout — record session end time and duration
+router.post('/logout', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.json({ message: 'No session to close' });
+
+    const session = await prisma.userSession.findUnique({ where: { id: Number(sessionId) } });
+    if (!session || session.logged_out_at) return res.json({ message: 'Session already closed' });
+
+    const now = new Date();
+    const durationMs = now.getTime() - new Date(session.logged_in_at).getTime();
+    const durationMinutes = Math.round(durationMs / 60000);
+
+    await prisma.userSession.update({
+      where: { id: Number(sessionId) },
+      data: { logged_out_at: now, duration_minutes: durationMinutes },
+    });
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 })
 

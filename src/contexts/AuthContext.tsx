@@ -4,8 +4,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export interface User {
   id: number
   name: string
-  role: 'super_admin' | 'manager' | 'receptionist'
-  originalRole?: 'super_admin' | 'manager' | 'receptionist' // Track the login role
+  role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
+  originalRole?: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
+  sessionId?: number
 }
 
 // Auth context type
@@ -15,7 +16,7 @@ interface AuthContextType {
   logout: () => void
   isAuthenticated: boolean
   isLoading: boolean
-  switchRole: (role: 'super_admin' | 'manager' | 'receptionist') => void
+  switchRole: (role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin') => void
 }
 
 // Create context
@@ -84,6 +85,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = () => {
+    // Record session end on the server (fire-and-forget)
+    const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser) as User;
+        if (parsedUser.sessionId) {
+          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+          fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: parsedUser.sessionId }),
+          }).catch(() => {});
+        }
+      } catch {}
+    }
     setUser(null)
     localStorage.removeItem(AUTH_STORAGE_KEY)
   }

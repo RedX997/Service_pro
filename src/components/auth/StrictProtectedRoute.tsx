@@ -20,7 +20,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isAuthenticated } = useAuth()
   const location = useLocation()
 
-  // If no user → redirect to "/login"
+  // If no user → redirect to appropriate login
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }

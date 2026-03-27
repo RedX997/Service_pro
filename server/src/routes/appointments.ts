@@ -179,8 +179,8 @@ router.post('/', async (req, res) => {
 
     // Send notifications to all roles (fire-and-forget, don't block response)
     const clientName = appointment.contactPerson || clientId;
-    const appointmentDate = new Date(date).toLocaleDateString();
-    const notifyMessage = `Appointment with ${clientName} on ${appointmentDate} at ${time} for ${purpose}`;
+    const appointmentDateLabel = new Date(date).toLocaleDateString();
+    const notifyMessage = `Appointment with ${clientName} on ${appointmentDateLabel} at ${time} for ${purpose}`;
 
     Promise.all(
       ['super_admin', 'manager', 'receptionist'].map(role =>

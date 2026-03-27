@@ -98,7 +98,8 @@ export const performLogin = async (
     const user: User = {
       id: userData.id,
       name: userData.name,
-      role: userData.role.role_name // Database returns role object with role_name
+      role: userData.role.role_name, // Database returns role object with role_name
+      sessionId: userData.sessionId,
     }
 
     return { success: true, user }

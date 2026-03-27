@@ -27,6 +27,8 @@ import ProtectedRouteDemo from "./pages/ProtectedRouteDemo";
 import RBACTest from "./pages/RBACTest";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
+import CascadeAdminDashboard from "./pages/CascadeAdminDashboard";
+import CascadeAdminLogin from "./pages/CascadeAdminLogin";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +157,17 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="receptionist">
             <Tasks />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Cascade Admin — separate portal, own login */}
+      <Route path="/cascade-admin/login" element={<Navigate to="/login" replace />} />
+      <Route 
+        path="/cascade-admin" 
+        element={
+          <ProtectedRoute requiredRole="cascade_admin">
+            <CascadeAdminDashboard />
           </ProtectedRoute>
         } 
       />

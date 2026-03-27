@@ -26,6 +26,7 @@ import authRoutes from './routes/auth.js';
 import notificationRoutes from './routes/notifications.js';
 import testNotificationRoutes from './routes/test-notification.js';
 import appointmentRoutes from './routes/appointments.js';
+import cascadeAdminRoutes from './routes/cascade-admin.js';
 import { scheduleAllUpcomingReminders } from './helpers/appointmentReminders.js';
 
 app.use(cors({
@@ -63,7 +64,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
 }));
 app.use(express.json());
 
@@ -91,6 +92,8 @@ app.use('/api/test-notification', testNotificationRoutes);
 console.log('Test notification route registered at /api/test-notification');
 app.use('/api/appointments', appointmentRoutes);
 console.log('Appointment routes registered at /api/appointments');
+app.use('/api/cascade-admin', cascadeAdminRoutes);
+console.log('Cascade admin routes registered at /api/cascade-admin');
 
 httpServer.listen(port, () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);
