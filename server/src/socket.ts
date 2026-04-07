@@ -34,10 +34,11 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
         return next();
       }
 
-      // Try to find employee by UUID
-      const employee = await prisma.employee.findUnique({
+      // Try to find employee by UUID (only if userId looks like a UUID, not an integer)
+      const isUUID = typeof userId === 'string' && userId.includes('-');
+      const employee = isUUID ? await prisma.employee.findUnique({
         where: { id: userId }
-      });
+      }) : null;
 
       if (employee) {
         socket.data.userId = employee.id;
@@ -47,10 +48,10 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
         return next();
       }
 
-      // If not found as employee, try as client
-      const client = await prisma.client.findUnique({
+      // If not found as employee, try as client (also UUID only)
+      const client = isUUID ? await prisma.client.findUnique({
         where: { id: userId }
-      });
+      }) : null;
 
       if (client) {
         socket.data.userId = client.id;
