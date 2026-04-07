@@ -51,7 +51,7 @@ export async function sendCredentialsEmail(personalEmail: string, fullName: stri
   if (resend) {
     try {
       const { data, error } = await resend.emails.send({
-        from: 'ServicePro <onboarding@resend.dev>',
+        from: 'ServicePro Admin <onboarding@servicepro.com>',
         to: personalEmail,
         subject: subject,
         html: htmlContent,
