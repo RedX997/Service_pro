@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npx prisma generate && npx prisma db push && node seed-users-production.js && node link-employees-to-users.js && tsc",
+    "build": "npx prisma generate && tsc",
     "start": "node dist/index.js",
     "postbuild": "npx prisma generate",
     "prisma:generate": "prisma generate",
