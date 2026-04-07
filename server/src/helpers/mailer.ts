@@ -1,17 +1,9 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// Brevo SMTP works on Render free tier (port 587 allowed)
-// Sign up free at brevo.com → SMTP & API → get credentials
-// Add to Render env: BREVO_USER, BREVO_PASS
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_HOST || 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.BREVO_USER || process.env.MAIL_USER,
-    pass: process.env.BREVO_PASS || process.env.MAIL_PASS,
-  },
-});
+// Resend free tier: 3000 emails/month, works on Render (HTTPS, no port blocking)
+// Sign up free at resend.com → API Keys → create key
+// Add RESEND_API_KEY to Render env vars
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendCredentialsEmail(
   personalEmail: string,
@@ -29,8 +21,8 @@ export async function sendCredentialsEmail(
     ? 'Your ServicePro credentials have been reset'
     : 'Your ServicePro Login Credentials';
 
-  await transporter.sendMail({
-    from: `"ServicePro" <${process.env.BREVO_USER || process.env.MAIL_USER}>`,
+  const { error } = await resend.emails.send({
+    from: 'ServicePro <onboarding@resend.dev>',
     to: personalEmail,
     subject,
     html: `
@@ -50,4 +42,6 @@ export async function sendCredentialsEmail(
       </div>
     `,
   });
+
+  if (error) throw new Error(error.message);
 }
