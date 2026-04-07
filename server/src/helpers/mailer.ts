@@ -2,14 +2,14 @@ import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST || 'smtp.gmail.com',
-  port: Number(process.env.MAIL_PORT) || 587,
-  secure: false,
+  port: 465, // Using Port 465 as it is often preferred in cloud environments like Render
+  secure: true, // true for 465, false for other ports
   auth: {
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
   },
   tls: {
-    rejectUnauthorized: false // Helps in some restricted network environments
+    rejectUnauthorized: false
   }
 });
 
