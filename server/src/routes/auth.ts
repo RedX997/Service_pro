@@ -40,22 +40,28 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
 
-    // Record login time and create session
+    // Record login time and create session (non-fatal if table doesn't exist yet)
     const ip = req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || null;
     const now = new Date();
+    let sessionId: number | null = null;
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { last_login_at: now },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { last_login_at: now },
+      });
 
-    const session = await prisma.userSession.create({
-      data: { user_id: user.id, logged_in_at: now, ip_address: ip },
-    });
+      const session = await prisma.userSession.create({
+        data: { user_id: user.id, logged_in_at: now, ip_address: ip },
+      });
+      sessionId = session.id;
+    } catch (sessionErr: any) {
+      console.warn('⚠️ Session tracking failed (non-fatal):', sessionErr.message);
+    }
 
     // Return user data (excluding password) + sessionId for logout tracking
     const { password: _, ...userWithoutPassword } = user
-    res.json({ ...userWithoutPassword, sessionId: session.id })
+    res.json({ ...userWithoutPassword, sessionId })
     
   } catch (error) {
     console.error('Login error:', error)
