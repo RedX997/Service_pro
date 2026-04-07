@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 // Initialize Resend (primary for production)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-// Initialize Nodemailer (fallback for local/development)
+// Initialize Nodemailer (fallback for local)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
@@ -16,16 +16,12 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false }
 });
 
-export async function sendCredentialsEmail(
-  personalEmail: string,
-  fullName: string,
-  systemEmail: string,
-  plainPassword: string,
-  role: string
-) {
+export async function sendCredentialsEmail(personalEmail: string, fullName: string, systemEmail: string, plainPassword: string, role: string, isNew = false) {
   const roleLabel = role === 'super_admin' ? 'Super Admin'
     : role === 'manager' ? 'Manager'
     : 'Receptionist';
+
+  const subject = isNew ? `🔐 REGENERATED: New Access for ServicePro` : `🔐 Credentials for your ServicePro Account`;
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 8px;">
@@ -53,22 +49,26 @@ export async function sendCredentialsEmail(
 
   // If Resend is configured, use it (Best for Production/Render)
   if (resend) {
-    const { data, error } = await resend.emails.send({
-      from: 'ServicePro <onboarding@resend.dev>',
-      to: personalEmail,
-      subject: `🔐 Credentials for your ServicePro Account`,
-      html: htmlContent,
-    });
-    
-    if (error) throw error;
-    return { accepted: [personalEmail], messageId: data?.id };
+    try {
+      const { data, error } = await resend.emails.send({
+        from: 'ServicePro <onboarding@resend.dev>',
+        to: personalEmail,
+        subject: subject,
+        html: htmlContent,
+      });
+      
+      if (error) throw error;
+      return { accepted: [personalEmail], messageId: data?.id };
+    } catch (err) {
+      console.warn('Resend failed, falling back to Gmail SMTP...', err);
+    }
   }
 
-  // Fallback to Nodemailer (For local development)
+  // Fallback to Nodemailer
   const info = await transporter.sendMail({
     from: `"ServicePro Admin" <${process.env.MAIL_USER}>`,
     to: personalEmail,
-    subject: `🔐 Credentials for your ServicePro Account`,
+    subject: subject,
     html: htmlContent,
   });
 

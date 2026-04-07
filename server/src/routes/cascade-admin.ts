@@ -218,14 +218,13 @@ router.patch('/users/:id/regenerate', requireCascadeAdmin, async (req, res) => {
       data: { plain_password: plainPassword },
     });
 
-    sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name)
-      .then((info) => {
-        console.log(`✅ New credentials emailed to ${user.personal_email}`);
-        console.log(`📬 Mailer Info: sent to ${info.accepted?.join(', ')} | ID: ${info.messageId}`);
-      })
-      .catch(err => {
-        console.error(`⚠️ Email failed for ${user.personal_email}:`, err);
-      });
+    // Send new credentials email (unique subject)
+    try {
+      await sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name, true);
+      console.log(`✅ New credentials emailed to ${user.personal_email}`);
+    } catch (err: any) {
+      console.error(`⚠️ Email failed for regeneration to ${user.personal_email}:`, err);
+    }
 
     res.json({ 
       success: true, 
