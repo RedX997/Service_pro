@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import emailjs from '@emailjs/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,6 +149,22 @@ export default function CascadeAdminDashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+
+      // Send credentials email via EmailJS (browser-based, no SMTP port issues)
+      emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        {
+          to_email: form.personalEmail,
+          full_name: form.fullName,
+          role: form.role === 'super_admin' ? 'Super Admin' : form.role === 'manager' ? 'Manager' : 'Receptionist',
+          system_email: data.systemEmail,
+          password: data.plainPassword,
+        },
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+      ).then(() => console.log('✅ Email sent via EmailJS'))
+       .catch(err => console.error('⚠️ EmailJS error:', err));
+
       // Show credentials on screen immediately
       setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
       setForm({ fullName: '', personalEmail: '', role: '' });
@@ -170,6 +187,24 @@ export default function CascadeAdminDashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+
+      // Send new credentials via EmailJS
+      const user = users.find(u => u.id === id);
+      if (user?.personal_email) {
+        emailjs.send(
+          import.meta.env.VITE_EMAILJS_SERVICE_ID,
+          import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+          {
+            to_email: user.personal_email,
+            full_name: user.name,
+            role: user.role.role_name === 'super_admin' ? 'Super Admin' : user.role.role_name === 'manager' ? 'Manager' : 'Receptionist',
+            system_email: data.systemEmail,
+            password: data.plainPassword,
+          },
+          import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+        ).catch(err => console.error('⚠️ EmailJS error:', err));
+      }
+
       // Show new credentials on screen immediately
       setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
       fetchCredentials();
