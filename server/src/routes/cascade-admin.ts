@@ -167,15 +167,10 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       },
     });
 
-    // Send email — await it so errors are visible in logs
-    try {
-      await sendCredentialsEmail(personalEmail, fullName, systemEmail, plainPassword, role);
-      console.log(`✅ Credentials emailed to ${personalEmail}`);
-    } catch (emailErr: any) {
-      console.error(`⚠️ Email failed for ${personalEmail}:`, emailErr.message);
-      console.error('MAIL_USER:', process.env.MAIL_USER ? 'SET' : 'NOT SET');
-      console.error('MAIL_PASS:', process.env.MAIL_PASS ? 'SET' : 'NOT SET');
-    }
+    // Send email — fire and forget, don't block the response
+    sendCredentialsEmail(personalEmail, fullName, systemEmail, plainPassword, role)
+      .then(() => console.log(`✅ Credentials emailed to ${personalEmail}`))
+      .catch(err => console.error(`⚠️ Email failed for ${personalEmail}:`, err.message));
 
     // Return standardized response for UI display
     res.status(201).json({ 
@@ -218,13 +213,10 @@ router.patch('/users/:id/regenerate', requireCascadeAdmin, async (req, res) => {
       data: { plain_password: plainPassword },
     });
 
-    // Send new credentials email
-    try {
-      await sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name, true);
-      console.log(`✅ New credentials emailed to ${user.personal_email}`);
-    } catch (emailErr: any) {
-      console.error(`⚠️ Regenerate email failed:`, emailErr.message);
-    }
+    // Send new credentials email — fire and forget
+    sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name, true)
+      .then(() => console.log(`✅ New credentials emailed to ${user.personal_email}`))
+      .catch(err => console.error(`⚠️ Regenerate email failed:`, err.message));
 
     res.json({ 
       success: true, 
