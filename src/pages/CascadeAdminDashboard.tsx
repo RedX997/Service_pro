@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, RefreshCw, ShieldCheck, UserX, UserCheck, LogOut, Eye, EyeOff, Clock } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, ShieldCheck, UserX, UserCheck, LogOut, Eye, EyeOff, Clock, Copy, CheckCheck } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
@@ -68,6 +68,8 @@ export default function CascadeAdminDashboard() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [form, setForm] = useState({ fullName: '', personalEmail: '', role: '' });
+  const [credModal, setCredModal] = useState<{ name: string; systemEmail: string; password: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -126,6 +128,12 @@ export default function CascadeAdminDashboard() {
     return `${slug}.${roleTag}ca@gmail.com`;
   };
 
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
   const handleCreate = async () => {
     if (!form.fullName || !form.personalEmail || !form.role) {
       toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
@@ -140,7 +148,8 @@ export default function CascadeAdminDashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast({ title: 'User Created', description: `Credentials sent to ${form.personalEmail}` });
+      // Show credentials on screen immediately
+      setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
       setForm({ fullName: '', personalEmail: '', role: '' });
       setIsDialogOpen(false);
       fetchUsers();
@@ -153,7 +162,7 @@ export default function CascadeAdminDashboard() {
   };
 
   const handleRegenerate = async (id: number, name: string) => {
-    if (!confirm(`Regenerate password for ${name}? New credentials will be emailed.`)) return;
+    if (!confirm(`Regenerate password for ${name}? New credentials will be shown on screen.`)) return;
     setRegeneratingId(id);
     try {
       const res = await fetch(`${API_URL}/cascade-admin/users/${id}/regenerate`, {
@@ -161,7 +170,9 @@ export default function CascadeAdminDashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast({ title: 'Password Regenerated', description: 'New credentials emailed successfully' });
+      // Show new credentials on screen immediately
+      setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
+      fetchCredentials();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -206,7 +217,7 @@ export default function CascadeAdminDashboard() {
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">{user?.name}</span>
           <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 hover:text-red-600">
-            <LogOut className="h-4 w-4 mr-1" /> Sign Out
+            < LogOut className="h-4 w-4 mr-1" /> Sign Out
           </Button>
         </div>
       </div>
@@ -454,7 +465,7 @@ export default function CascadeAdminDashboard() {
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
             <DialogDescription>
-              Credentials will be auto-generated and emailed to the personal address.
+              Credentials will be auto-generated and shown on screen (and emailed if configured).
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
@@ -501,6 +512,68 @@ export default function CascadeAdminDashboard() {
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create & Send Credentials
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Credentials Modal */}
+      <Dialog open={!!credModal} onOpenChange={() => setCredModal(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-green-600" />
+              Credentials Generated
+            </DialogTitle>
+            <DialogDescription>
+              Save these credentials now — the password cannot be retrieved later.
+              {' '}An email has also been sent to the personal address.
+            </DialogDescription>
+          </DialogHeader>
+          {credModal && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border bg-muted/40 p-4 space-y-4">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Name</p>
+                  <p className="font-semibold">{credModal.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">System Email (Login ID)</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm font-mono bg-background border rounded px-2 py-1.5 break-all">
+                      {credModal.systemEmail}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(credModal.systemEmail, 'email')}
+                      className="shrink-0 p-1.5 rounded hover:bg-muted transition-colors"
+                      title="Copy email"
+                    >
+                      {copied === 'email' ? <CheckCheck className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Password</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm font-mono bg-background border rounded px-2 py-1.5 text-primary font-bold tracking-wider">
+                      {credModal.password}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(credModal.password, 'pass')}
+                      className="shrink-0 p-1.5 rounded hover:bg-muted transition-colors"
+                      title="Copy password"
+                    >
+                      {copied === 'pass' ? <CheckCheck className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                ⚠️ Share these credentials securely. Once you close this dialog, the password is no longer visible here.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setCredModal(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

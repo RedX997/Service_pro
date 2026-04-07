@@ -169,12 +169,22 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
 
     // Send email (non-blocking — don't fail user creation if email fails)
     sendCredentialsEmail(personalEmail, fullName, systemEmail, plainPassword, role)
-      .then(() => console.log(`✅ Credentials emailed to ${personalEmail}`))
-      .catch(err => console.error(`⚠️ Email failed for ${personalEmail}:`, err.message));
+      .then((info) => {
+        console.log(`✅ Credentials emailed to ${personalEmail}`);
+        console.log(`📬 Mailer Info: sent to ${info.accepted?.join(', ')} | ID: ${info.messageId}`);
+      })
+      .catch(err => {
+        console.error(`⚠️ Email failed for ${personalEmail}:`, err);
+      });
 
-    // Return user without password
-    const { password: _, ...safeUser } = newUser;
-    res.status(201).json({ ...safeUser, systemEmail });
+    // Return standardized response for UI display
+    res.status(201).json({ 
+      success: true,
+      fullName, 
+      systemEmail, 
+      plainPassword,
+      userId: newUser.id 
+    });
   } catch (err: any) {
     console.error('Error creating user:', err);
     res.status(500).json({ error: err.message });
@@ -209,10 +219,21 @@ router.patch('/users/:id/regenerate', requireCascadeAdmin, async (req, res) => {
     });
 
     sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name)
-      .then(() => console.log(`✅ New credentials emailed to ${user.personal_email}`))
-      .catch(err => console.error(`⚠️ Email failed:`, err.message));
+      .then((info) => {
+        console.log(`✅ New credentials emailed to ${user.personal_email}`);
+        console.log(`📬 Mailer Info: sent to ${info.accepted?.join(', ')} | ID: ${info.messageId}`);
+      })
+      .catch(err => {
+        console.error(`⚠️ Email failed for ${user.personal_email}:`, err);
+      });
 
-    res.json({ message: 'Password regenerated and emailed successfully' });
+    res.json({ 
+      success: true, 
+      message: 'Password regenerated and emailed successfully', 
+      plainPassword, 
+      systemEmail: user.email, 
+      fullName: user.name 
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
