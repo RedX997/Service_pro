@@ -167,15 +167,10 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       },
     });
 
-    // Send email (non-blocking — don't fail user creation if email fails)
+    // Send email (asynchronous / non-blocking for better UI performance)
     sendCredentialsEmail(personalEmail, fullName, systemEmail, plainPassword, role)
-      .then((info) => {
-        console.log(`✅ Credentials emailed to ${personalEmail}`);
-        console.log(`📬 Mailer Info: sent to ${info.accepted?.join(', ')} | ID: ${info.messageId}`);
-      })
-      .catch(err => {
-        console.error(`⚠️ Email failed for ${personalEmail}:`, err);
-      });
+      .then(() => console.log(`✅ Credentials emailed to ${personalEmail}`))
+      .catch(err => console.error(`⚠️ Email failed for ${personalEmail}:`, err));
 
     // Return standardized response for UI display
     res.status(201).json({ 
@@ -218,13 +213,10 @@ router.patch('/users/:id/regenerate', requireCascadeAdmin, async (req, res) => {
       data: { plain_password: plainPassword },
     });
 
-    // Send new credentials email (unique subject)
-    try {
-      await sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name, true);
-      console.log(`✅ New credentials emailed to ${user.personal_email}`);
-    } catch (err: any) {
-      console.error(`⚠️ Email failed for regeneration to ${user.personal_email}:`, err);
-    }
+    // Send new credentials email (asynchronous / non-blocking)
+    sendCredentialsEmail(user.personal_email, user.name, user.email, plainPassword, user.role.role_name, true)
+      .then(() => console.log(`✅ New credentials emailed to ${user.personal_email}`))
+      .catch(err => console.error(`⚠️ Email failed for regeneration to ${user.personal_email}:`, err));
 
     res.json({ 
       success: true, 
