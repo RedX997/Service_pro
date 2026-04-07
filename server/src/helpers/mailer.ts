@@ -1,9 +1,13 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-// Resend free tier: 3000 emails/month, works on Render (HTTPS, no port blocking)
-// Sign up free at resend.com → API Keys → create key
-// Add RESEND_API_KEY to Render env vars
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Gmail SMTP via port 465 (SSL) - try this if 587 is blocked on Render
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
 
 export async function sendCredentialsEmail(
   personalEmail: string,
@@ -21,8 +25,8 @@ export async function sendCredentialsEmail(
     ? 'Your ServicePro credentials have been reset'
     : 'Your ServicePro Login Credentials';
 
-  const { error } = await resend.emails.send({
-    from: 'ServicePro <onboarding@resend.dev>',
+  await transporter.sendMail({
+    from: `"ServicePro" <${process.env.MAIL_USER}>`,
     to: personalEmail,
     subject,
     html: `
@@ -42,6 +46,4 @@ export async function sendCredentialsEmail(
       </div>
     `,
   });
-
-  if (error) throw new Error(error.message);
 }
