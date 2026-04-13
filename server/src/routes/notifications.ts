@@ -4,17 +4,14 @@ import { prisma } from '../lib/prisma.js';
 const router = express.Router();
 
 /**
- * GET /api/notifications
+ * POST /api/notifications/list (PUSH)
  * Fetch notifications for the logged-in user
- * Query params:
- *   - limit: number of notifications to fetch (default: 50, max: 100)
- *   - unreadOnly: boolean to fetch only unread notifications
  */
-router.get('/', async (req, res) => {
+router.post('/list', async (req, res) => {
   try {
     // In production, extract userId from JWT token
     // For now, we'll get it from query params or headers
-    const userId = parseInt(req.query.userId as string || req.headers['x-user-id'] as string);
+    const userId = parseInt(req.body.userId as string || req.query.userId as string || req.headers['x-user-id'] as string);
 
     if (!userId || isNaN(userId)) {
       return res.status(401).json({ error: 'User ID required' });
@@ -187,10 +184,10 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
- * GET /api/notifications/stats
+ * POST /api/notifications/stats (PUSH)
  * Get notification statistics for the logged-in user
  */
-router.get('/stats', async (req, res) => {
+router.post('/stats', async (req, res) => {
   try {
     const userId = parseInt(req.query.userId as string || req.headers['x-user-id'] as string);
 

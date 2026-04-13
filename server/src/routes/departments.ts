@@ -3,8 +3,8 @@ import { prisma } from '../lib/prisma.js';
 
 const router = express.Router();
 
-// Get all departments
-router.get('/', async (req, res) => {
+// Get all departments - POST (PUSH)
+router.post('/list', async (req, res) => {
     try {
         const departments = await prisma.department.findMany({
             orderBy: { createdAt: 'desc' },
@@ -70,8 +70,8 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Get department by ID
-router.get('/:id', async (req, res) => {
+// Get department by ID - POST (PUSH)
+router.post('/details/:id', async (req, res) => {
     try {
         const department = await prisma.department.findUnique({
             where: { id: req.params.id },

@@ -78,6 +78,16 @@ export const isValidUser = (user: any): user is User => {
     typeof user.id === 'number' &&
     typeof user.name === 'string' &&
     typeof user.email === 'string' &&
-    ['super_admin', 'manager', 'receptionist'].includes(user.role)
+    ['super_admin', 'manager', 'receptionist', 'employee'].includes(user.role)
   )
 }
+
+// Get full avatar URL
+export const getAvatarUrl = (url: string | null | undefined) => {
+  if (!url) return undefined;
+  if (url.startsWith('http')) return url;
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000';
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${cleanBaseUrl}${cleanUrl}`;
+};

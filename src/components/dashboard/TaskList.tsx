@@ -1,74 +1,59 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Circle, Clock, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-
-interface Task {
-  id: string;
-  title: string;
-  due: string;
-  priority: 'high' | 'medium' | 'low';
-  completed: boolean;
-}
-
-const STORAGE_KEY = 'servicepro_tasks';
-
-const defaultTasks: Task[] = [
-  { id: '1', title: 'Follow up with Sharma Industries', due: 'Today, 2:00 PM', priority: 'high', completed: false },
-  { id: '2', title: 'Submit GST Returns - Batch A', due: 'Today, 5:00 PM', priority: 'high', completed: false },
-  { id: '3', title: 'Review client documents - XYZ Corp', due: 'Tomorrow', priority: 'medium', completed: false },
-  { id: '4', title: 'Meeting with new client - Patel Group', due: 'Tomorrow, 11:00 AM', priority: 'medium', completed: false },
-  { id: '5', title: 'Update client database', due: 'Completed', priority: 'low', completed: true },
-];
+import { useTasks, useUpdateTask } from '@/hooks/useTasks';
+import { format } from 'date-fns';
 
 const priorityStyles = {
   high: 'text-redzone',
+  urgent: 'text-red-700 font-bold',
   medium: 'text-warning',
   low: 'text-muted-foreground',
 };
 
-export function TaskList() {
+export function TaskList({ employeeId }: { employeeId?: string }) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [taskStates, setTaskStates] = useState<Task[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : defaultTasks;
-  });
+  const { data: allTasks = [], isLoading } = useTasks();
+  const updateTaskMutation = useUpdateTask();
 
-  // Save to localStorage whenever tasks change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(taskStates));
-  }, [taskStates]);
+  const tasks = useMemo(() => {
+    if (employeeId) {
+      return allTasks.filter(task => task.assignedTo === employeeId);
+    }
+    return allTasks;
+  }, [allTasks, employeeId]);
 
   const handleViewAll = () => {
-    // Navigate to a tasks page or show all tasks
-    toast({
-      title: "Tasks View",
-      description: "Opening full task list...",
-    });
-    // You can navigate to a dedicated tasks page when created
-    // navigate('/tasks');
+    navigate('/tasks');
   };
 
-  const toggleTaskComplete = (taskId: string) => {
-    setTaskStates(prev => 
-      prev.map(task => 
-        task.id === taskId 
-          ? { ...task, completed: !task.completed }
-          : task
-      )
-    );
+  const toggleTaskComplete = async (taskId: string, currentStatus: string, title: string) => {
+    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     
-    const task = taskStates.find(t => t.id === taskId);
-    if (task) {
+    try {
+      await updateTaskMutation.mutateAsync({
+        id: taskId,
+        updates: { status: newStatus }
+      });
+      
       toast({
-        title: task.completed ? "Task Reopened" : "Task Completed",
-        description: task.title,
+        title: newStatus === 'completed' ? "Task Completed" : "Task Reopened",
+        description: title,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive"
       });
     }
   };
+
+  const displayTasks = tasks.slice(0, 5); // Show top 5 tasks
 
   return (
     <div className="bg-card rounded-xl border shadow-card animate-slide-up">
@@ -86,35 +71,51 @@ export function TaskList() {
           View All <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
-      <div className="divide-y">
-        {taskStates.map((task) => (
-          <div 
-            key={task.id} 
-            className={cn(
-              'p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors',
-              task.completed && 'opacity-60'
-            )}
-          >
-            <button 
-              className="shrink-0"
-              onClick={() => toggleTaskComplete(task.id)}
-              aria-label={task.completed ? "Mark as incomplete" : "Mark as complete"}
-            >
-              {task.completed ? (
-                <CheckCircle2 className="h-5 w-5 text-success" />
-              ) : (
-                <Circle className={cn('h-5 w-5', priorityStyles[task.priority])} />
-              )}
-            </button>
-            <div className="flex-1 min-w-0 cursor-pointer">
-              <p className={cn('font-medium', task.completed && 'line-through')}>{task.title}</p>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
-                <Clock className="h-3 w-3" />
-                <span>{task.due}</span>
-              </div>
-            </div>
+      <div className="divide-y relative min-h-[100px]">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ))}
+        ) : displayTasks.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground italic">
+            No tasks found.
+          </div>
+        ) : (
+          displayTasks.map((task) => {
+            const isCompleted = task.status === 'completed';
+            return (
+              <div 
+                key={task.id} 
+                className={cn(
+                  'p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors',
+                  isCompleted && 'opacity-60'
+                )}
+              >
+                <button 
+                  className="shrink-0"
+                  onClick={() => toggleTaskComplete(task.id, task.status, task.title)}
+                  disabled={updateTaskMutation.isPending}
+                  aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                  ) : (
+                    <Circle className={cn('h-5 w-5', priorityStyles[task.priority as keyof typeof priorityStyles] || priorityStyles.low)} />
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className={cn('font-medium', isCompleted && 'line-through')}>{task.title}</p>
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {task.dueDate ? format(new Date(task.dueDate), 'MMM d, h:mm a') : 'No due date'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

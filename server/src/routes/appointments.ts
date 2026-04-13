@@ -5,8 +5,8 @@ import { scheduleReminder } from '../helpers/appointmentReminders.js';
 
 const router = express.Router();
 
-// Get all appointments
-router.get('/', async (req, res) => {
+// Get all appointments - POST (PUSH)
+router.post('/list', async (req, res) => {
   try {
     const { employeeId, clientId, status, date } = req.query;
     
@@ -40,8 +40,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get today's appointments
-router.get('/today', async (req, res) => {
+// Get today's appointments - POST (PUSH)
+router.post('/today', async (req, res) => {
   try {
     const { employeeId } = req.query;
     
@@ -73,8 +73,8 @@ router.get('/today', async (req, res) => {
   }
 });
 
-// Get single appointment
-router.get('/:id', async (req, res) => {
+// Get single appointment - POST (PUSH)
+router.post('/details/:id', async (req, res) => {
   try {
     const { id } = req.params;
 

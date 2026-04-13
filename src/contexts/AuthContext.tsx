@@ -4,9 +4,23 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export interface User {
   id: number
   name: string
+  email: string
   role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
   originalRole?: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
   sessionId?: number
+  phone?: string
+  address?: string
+  avatar_url?: string
+  city?: string
+  state?: string
+  zip?: string
+  timezone?: string
+  theme?: string
+  compactView?: boolean
+  showWelcome?: boolean
+  showQuickActions?: boolean
+  highContrast?: boolean
+  fontSize?: string
 }
 
 // Auth context type
@@ -14,6 +28,7 @@ interface AuthContextType {
   user: User | null
   login: (user: User) => void
   logout: () => void
+  updateUser: (data: Partial<User>) => void
   isAuthenticated: boolean
   isLoading: boolean
   switchRole: (role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin') => void
@@ -69,11 +84,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Invalid user data')
       }
       
-      // Set originalRole to track the login role
-      const userWithOriginalRole: User = {
-        ...userData,
-        originalRole: userData.originalRole || userData.role // Preserve originalRole if it exists
-      }
+    // Set originalRole to track the login role
+    const normalizedUserData = { ...userData };
+    if (normalizedUserData.role && typeof normalizedUserData.role === 'object' && (normalizedUserData.role as any).role_name) {
+      normalizedUserData.role = (normalizedUserData.role as any).role_name;
+    }
+
+    const userWithOriginalRole: User = {
+      ...normalizedUserData as any,
+      originalRole: normalizedUserData.originalRole || normalizedUserData.role // Preserve originalRole if it exists
+    }
       
       setUser(userWithOriginalRole)
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithOriginalRole))
@@ -143,6 +163,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.warn('Receptionist cannot switch roles')
   }
 
+  // Update user info
+  const updateUser = (data: any) => {
+    if (!user) return
+    
+    // Normalize role if it's an object from the database
+    const normalizedData = { ...data };
+    if (normalizedData.role && typeof normalizedData.role === 'object' && normalizedData.role.role_name) {
+      normalizedData.role = normalizedData.role.role_name;
+    }
+    
+    const updatedUser = { ...user, ...normalizedData }
+    setUser(updatedUser)
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
+  }
+
   // Helper functions
   const isAuthenticated = user !== null
 
@@ -151,10 +186,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     login,
     logout,
+    updateUser,
     isAuthenticated,
     isLoading,
     switchRole
   }
+
+  // Apply global appearance settings securely
+  useEffect(() => {
+    if (!user) return;
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark', 'high-contrast');
+
+    // Theme logic
+    const theme = user.theme || localStorage.getItem('theme') || 'light';
+    const applyTheme = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    root.classList.add(applyTheme);
+
+    // High Contrast logic
+    const isHighContrast = user.highContrast ?? JSON.parse(localStorage.getItem('highContrast') || 'false');
+    if (isHighContrast) root.classList.add('high-contrast');
+
+    // Font size logic
+    const fontSize = user.fontSize || localStorage.getItem('fontSize') || 'Medium';
+    switch(fontSize) {
+      case 'Small': root.style.fontSize = '14px'; break;
+      case 'Medium': root.style.fontSize = '16px'; break;
+      case 'Large': root.style.fontSize = '18px'; break;
+      case 'Extra Large': root.style.fontSize = '20px'; break;
+      default: root.style.fontSize = '16px';
+    }
+  }, [user]);
 
   // Show loading spinner while initializing
   if (isLoading) {

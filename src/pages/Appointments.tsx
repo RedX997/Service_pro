@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Clock, User, MapPin, Phone, Video, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -102,13 +103,41 @@ export default function Appointments() {
     completeAppointment: completeAppointmentAPI,
   } = useAppointments();
 
+  const { user } = useAuth();
+
+  const currentEmployee = useMemo(() => {
+    return employees.find(e => e.email === user?.email);
+  }, [employees, user]);
+
+  const filteredAppointments = useMemo(() => {
+    if (user?.role === 'employee') {
+      // Find current employee by email or use direct email check if possible
+      // Assuming Appointment object has employee email or we use our currentEmployee record
+      if (currentEmployee) {
+        return appointments.filter(apt => apt.employeeId === currentEmployee.id);
+      }
+      
+      // Fallback: If currentEmployee isn't loaded yet, keep list empty or filter by email if appointment has it
+      // But appointments from backend only have employeeId usually.
+      // So stay with ID filtering but ENSURE we handle the loading state correctly.
+      return []; 
+    }
+    return appointments;
+  }, [appointments, user, currentEmployee]);
+
   // Fetch employees and clients directly from API (not mock service)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [empRes, clientRes] = await Promise.all([
-          fetch(`${API_URL}/employees`),
-          fetch(`${API_URL}/clients`),
+          fetch(`${API_URL}/employees/list`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          }),
+          fetch(`${API_URL}/clients/list`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          }),
         ]);
         if (empRes.ok) setEmployees(await empRes.json());
         if (clientRes.ok) setClients(await clientRes.json());
@@ -156,7 +185,7 @@ export default function Appointments() {
     const durationMinutes = parseDuration(duration);
     const newEnd = new Date(newStart.getTime() + durationMinutes * 60000);
 
-    return appointments.some(apt => {
+    return filteredAppointments.some(apt => {
       if (apt.id === excludeId) return false; // Skip current appointment when rescheduling
       if (apt.employeeId !== employeeId) return false; // Only check same employee
       
@@ -284,7 +313,7 @@ export default function Appointments() {
   const datesWithActiveAppointments = new Set<string>();
   const datesWithAllDoneAppointments = new Set<string>();
 
-  appointments.forEach(apt => {
+  filteredAppointments.forEach(apt => {
     const key = new Date(apt.date).toDateString();
     if (apt.status === 'cancelled' || apt.status === 'completed') {
       // Only add to all-done set if no active appointment exists for that day
@@ -298,13 +327,13 @@ export default function Appointments() {
     }
   });
 
-  const activeDays = appointments
+  const activeDays = filteredAppointments
     .filter(apt => apt.status !== 'cancelled' && apt.status !== 'completed')
     .map(apt => new Date(apt.date));
 
   const doneDays = [...datesWithAllDoneAppointments].map(d => new Date(d));
   const selectedDate = date || new Date();
-  const selectedDateAppointments = appointments.filter(appointment => {
+  const selectedDateAppointments = filteredAppointments.filter(appointment => {
     const appointmentDate = new Date(appointment.date);
     return appointmentDate.toDateString() === selectedDate.toDateString();
   });

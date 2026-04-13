@@ -1,13 +1,14 @@
 // Role-Based Access Control (RBAC) System
 // Defines role hierarchy and access control functions
 
-export type UserRole = 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
+export type UserRole = 'super_admin' | 'manager' | 'receptionist' | 'employee' | 'cascade_admin'
 
 // Role hierarchy - defines which roles each user role can access
 export const roleHierarchy: Record<UserRole, UserRole[]> = {
-  super_admin: ['super_admin', 'manager', 'receptionist'],
-  manager: ['manager', 'receptionist'],
-  receptionist: ['receptionist'],
+  super_admin: ['super_admin', 'manager', 'receptionist', 'employee'],
+  manager: ['manager', 'receptionist', 'employee'],
+  receptionist: ['receptionist', 'employee'],
+  employee: ['employee'],
   cascade_admin: ['cascade_admin'],
 }
 
@@ -16,6 +17,7 @@ export const roleRoutes: Record<UserRole, string> = {
   super_admin: '/dashboard',
   manager: '/dashboard',
   receptionist: '/dashboard',
+  employee: '/dashboard',
   cascade_admin: '/cascade-admin',
 }
 
@@ -39,5 +41,5 @@ export function getDashboardRoute(role: string): string {
  * Validate if a role is valid
  */
 export function isValidRole(role: string): role is UserRole {
-  return ['super_admin', 'manager', 'receptionist', 'cascade_admin'].includes(role)
+  return ['super_admin', 'manager', 'receptionist', 'employee', 'cascade_admin'].includes(role)
 }

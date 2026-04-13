@@ -17,6 +17,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [react()],
+    build: {
+      sourcemap: false,
+      minify: 'esbuild',
+      chunkSizeWarningLimit: 1000,
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

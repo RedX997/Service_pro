@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Message } from '@/types';
-import { messageService } from '@/services';
+import { messageService, apiClient } from '@/services';
 
 export const useMessages = () => {
   return useQuery({
     queryKey: ['messages'],
-    queryFn: () => messageService.getAll(),
+    queryFn: () => apiClient.post<Message[]>('/messages/all'),
     refetchInterval: 5000, // Refresh every 5 seconds for real-time feel
   });
 };

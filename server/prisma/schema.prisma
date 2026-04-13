@@ -21,6 +21,7 @@ model Client {
   services         String[] @default([])
   assignedEmployee String?
   lastContact      DateTime?
+  avatarUrl        String?  @db.Text
   createdAt        DateTime @default(now())
   messages         Message[]
   timeEntries      TimeEntry[]
@@ -37,6 +38,7 @@ model Employee {
   role        String
   department  String?
   status      String   @default("active")
+  avatarUrl   String?  @db.Text
   createdAt   DateTime @default(now())
   timeEntries TimeEntry[]
   assignedTasks Task[] @relation("AssignedTasks")
@@ -237,6 +239,25 @@ model User {
   personal_email String?  @db.VarChar(255)
   is_active      Boolean  @default(true)
   job_title      String?  @db.VarChar(100)
+  department     String?  @db.VarChar(100)
+  
+  // New Settings Fields
+  phone          String?  @db.VarChar(50)
+  address        String?  @db.Text
+  city           String?  @db.VarChar(100)
+  state          String?  @db.VarChar(100)
+  zip            String?  @db.VarChar(20)
+  timezone       String?  @db.VarChar(50) @default("System Default")
+
+  // Appearance Fields
+  theme            String?  @db.VarChar(20) @default("light")
+  compactView      Boolean? @default(false)
+  showWelcome      Boolean? @default(true)
+  showQuickActions Boolean? @default(true)
+  highContrast     Boolean? @default(false)
+  fontSize         String?  @db.VarChar(20) @default("Medium")
+  avatar_url       String?  @db.Text
+
   last_login_at  DateTime? @db.Timestamp(6)
   created_at     DateTime @default(now()) @db.Timestamp(6)
   
@@ -244,6 +265,7 @@ model User {
   notifications  Notification[]
   activityLogs   ClientActivityLog[]
   sessions       UserSession[]
+  tickets        SupportTicket[]
 
   @@index([email])
   @@index([role_id])
@@ -307,4 +329,25 @@ model ClientActivityLog {
   @@index([action])
   @@index([createdAt])
   @@map("client_activity_logs")
+}
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      Int
+  subject     String
+  message     String   @db.Text
+  category    String   // 'bug', 'feature_request', 'account', 'other'
+  priority    String   @default("medium") // 'low', 'medium', 'high', 'urgent'
+  status      String   @default("open") // 'open', 'in_progress', 'resolved', 'closed'
+  adminReply  String?  @db.Text
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("support_tickets")
 }

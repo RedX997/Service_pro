@@ -5,14 +5,51 @@ import { logClientActivity, ClientActivityAction, generateUpdateDescription, get
 
 const router = express.Router();
 
-// Get all clients
-router.get('/', async (req, res) => {
+// Get all clients - POST (PUSH)
+router.post('/list', async (req, res) => {
     try {
         const clients = await prisma.client.findMany({
             orderBy: { createdAt: 'desc' },
         });
         res.json(clients);
     } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get global activity history - POST (PUSH)
+router.post('/all-activity', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 10;
+        
+        const activities = await prisma.clientActivityLog.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        role: {
+                            select: {
+                                role_name: true
+                            }
+                        }
+                    }
+                },
+                client: {
+                    select: {
+                        id: true,
+                        name: true,
+                        company: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: limit
+        });
+        
+        res.json(activities);
+    } catch (error: any) {
+        console.error('Error fetching global activity:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -368,8 +405,8 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
-// Get client by ID
-router.get('/:id', async (req, res) => {
+// Get client by ID - POST (PUSH)
+router.post('/details/:id', async (req, res) => {
     try {
         const client = await prisma.client.findUnique({
             where: { id: req.params.id },
@@ -383,8 +420,8 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Get client activity history
-router.get('/:id/activity', async (req, res) => {
+// Get client activity history - POST (PUSH)
+router.post('/:id/activity/list', async (req, res) => {
     try {
         const clientId = req.params.id;
         const page = parseInt(req.query.page as string) || 1;

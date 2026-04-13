@@ -11,12 +11,13 @@ export interface IBaseService<T> {
 export abstract class BaseApiService<T> implements IBaseService<T> {
     protected abstract endpoint: string;
 
+    // Converted to POST (PUSH) as requested
     async getAll(): Promise<T[]> {
-        return apiClient.get<T[]>(this.endpoint);
+        return apiClient.post<T[]>(`${this.endpoint}/list`, {});
     }
 
     async getById(id: string): Promise<T> {
-        return apiClient.get<T>(`${this.endpoint}/${id}`);
+        return apiClient.post<T>(`${this.endpoint}/details/${id}`, {});
     }
 
     async create(data: Omit<T, 'id' | 'createdAt'>): Promise<T> {

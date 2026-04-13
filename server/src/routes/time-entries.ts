@@ -3,8 +3,8 @@ import { prisma } from '../lib/prisma.js';
 
 const router = express.Router();
 
-// Get all time entries
-router.get('/', async (req, res) => {
+// Get all time entries - POST (PUSH)
+router.post('/list', async (req, res) => {
     try {
         const timeEntries = await prisma.timeEntry.findMany({
             orderBy: { createdAt: 'desc' },
@@ -19,8 +19,8 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get active timer for employee
-router.get('/active/:employeeId', async (req, res) => {
+// Get active timer for employee - POST (PUSH)
+router.post('/active/:employeeId', async (req, res) => {
     try {
         // In this simple implementation, we assume the latest entry without an endTime is the active timer
         // Note: The schema definition of TimeEntry doesn't explicitly distinguish "ActiveTimer" as a separate table

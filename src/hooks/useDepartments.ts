@@ -20,7 +20,7 @@ export function useDepartments() {
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.get<Department[]>('/departments');
+      const data = await apiClient.post<Department[]>('/departments/list');
       setDepartments(data);
       setError(null);
     } catch (err: any) {

@@ -1,15 +1,53 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '@/components/ui/stat-card';
-import { TodayTasksCard } from '@/components/TodayTasksCard';
+import { TaskList } from '@/components/dashboard/TaskList';
 import { RecentVisitors } from '@/components/dashboard/RecentVisitors';
-import { RedZoneChats } from '@/components/dashboard/RedZoneChats';
+import { RecentActivities } from '@/components/dashboard/RecentActivities';
 import { ClientAssignment } from '@/components/dashboard/ClientAssignment';
-import { Users, UserPlus, Clock, MessageSquare, Building2, FileText, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, Clock, MessageSquare, Building2, FileText, AlertTriangle, CheckSquare, UserCheck } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useVisitors } from '@/hooks/useVisitors';
+import { useMessages } from '@/hooks/useMessages';
 import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { PlusCircle, Send, Calendar, Users as UsersIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+// New Helper Components based on preferences
+const WelcomeBanner = ({ roleName, isVisible }: { roleName: string, isVisible: boolean }) => {
+  if (!isVisible) return null;
+  return (
+    <div className="bg-primary/5 border border-primary/10 rounded-lg p-5 mb-6">
+      <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Welcome back!</h2>
+      <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm">
+        Here is what is happening across your {roleName} workspace today.
+      </p>
+    </div>
+  );
+};
+
+const QuickActionsPanel = ({ isVisible }: { isVisible: boolean }) => {
+  const navigate = useNavigate();
+  if (!isVisible) return null;
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <Button onClick={() => navigate('/tasks')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
+        <PlusCircle className="h-4 w-4 text-primary" /> New Task
+      </Button>
+      <Button onClick={() => navigate('/clients')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
+        <UsersIcon className="h-4 w-4 text-primary" /> Add Client
+      </Button>
+      <Button onClick={() => navigate('/appointments')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
+        <Calendar className="h-4 w-4 text-primary" /> Book Apt
+      </Button>
+      <Button onClick={() => navigate('/messages')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
+        <Send className="h-4 w-4 text-primary" /> Message
+      </Button>
+    </div>
+  );
+};
 
 function SuperAdminDashboard() {
   const { data: clients = [] } = useClients();
@@ -20,14 +58,27 @@ function SuperAdminDashboard() {
     return employees.filter(e => e.status === 'active').length;
   }, [employees]);
 
+  const { user } = useAuth();
+  
+  const isCompact = user?.compactView ?? false;
+  const showWelcome = user?.showWelcome ?? true;
+  const showQuickActions = user?.showQuickActions ?? true;
+  
+  const spaceClass = isCompact ? "space-y-3" : "space-y-6";
+  const gapClass = isCompact ? "gap-3" : "gap-6";
+
   return (
-    <div className="space-y-6">
+    <div className={spaceClass}>
+      <WelcomeBanner roleName="Admin" isVisible={showWelcome} />
+      
       <div>
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground">System overview and configuration</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <QuickActionsPanel isVisible={showQuickActions} />
+
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${gapClass}`}>
         <StatCard
           title="Total Clients"
           value={clients.length.toString()}
@@ -52,16 +103,16 @@ function SuperAdminDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <TodayTasksCard />
+      <div className={`grid lg:grid-cols-2 ${gapClass}`}>
+        <TaskList />
         <ClientAssignment />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={`grid lg:grid-cols-3 ${gapClass}`}>
         <div className="lg:col-span-2">
           <RecentVisitors />
         </div>
-        <RedZoneChats />
+        <RecentActivities />
       </div>
     </div>
   );
@@ -71,18 +122,8 @@ function ManagerDashboard() {
   const { user } = useAuth();
   const { data: clients = [], isLoading: clientsLoading } = useClients();
   const { data: employees = [] } = useEmployees();
+  const { data: messages = [] } = useMessages();
   
-  // Get messages from localStorage
-  const messages = useMemo(() => {
-    const stored = localStorage.getItem('servicepro_messages');
-    return stored ? JSON.parse(stored) : [];
-  }, []);
-
-  // Debug logging
-  console.log('Manager Dashboard - Clients:', clients.length, clients);
-  console.log('Manager Dashboard - Employees:', employees.length);
-  console.log('Manager Dashboard - Messages:', messages.length);
-
   // Calculate my clients (all clients for manager view)
   const myClients = useMemo(() => {
     // Show all clients for managers (they oversee all)
@@ -98,17 +139,28 @@ function ManagerDashboard() {
   const redZoneChats = useMemo(() => {
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-    return messages.filter(m => !m.isRead && new Date(m.timestamp) < oneDayAgo).length;
+    return messages.filter(m => !m.isRead && m.senderType === 'client' && new Date(m.timestamp) < oneDayAgo).length;
   }, [messages]);
 
+  const isCompact = user?.compactView ?? false;
+  const showWelcome = user?.showWelcome ?? true;
+  const showQuickActions = user?.showQuickActions ?? true;
+  
+  const spaceClass = isCompact ? "space-y-3" : "space-y-6";
+  const gapClass = isCompact ? "gap-3" : "gap-6";
+
   return (
-    <div className="space-y-6">
+    <div className={spaceClass}>
+      <WelcomeBanner roleName="Manager" isVisible={showWelcome} />
+
       <div>
         <h1 className="text-2xl font-bold">Manager Dashboard</h1>
         <p className="text-muted-foreground">Team oversight and client management</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <QuickActionsPanel isVisible={showQuickActions} />
+
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${gapClass}`}>
         <StatCard
           title="My Clients"
           value={myClients.toString()}
@@ -133,15 +185,15 @@ function ManagerDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={`grid lg:grid-cols-3 ${gapClass}`}>
         <div className="lg:col-span-2">
           <ClientAssignment />
         </div>
-        <RedZoneChats />
+        <RecentActivities />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <TodayTasksCard />
+      <div className={`grid lg:grid-cols-2 ${gapClass}`}>
+        <TaskList />
         <RecentVisitors />
       </div>
     </div>
@@ -149,19 +201,16 @@ function ManagerDashboard() {
 }
 
 function ReceptionistDashboard() {
+  const { user } = useAuth();
   const { data: visitors = [] } = useVisitors();
+  const { data: messages = [] } = useMessages();
   
-  // Get messages from localStorage
-  const messages = useMemo(() => {
-    const stored = localStorage.getItem('servicepro_messages');
-    return stored ? JSON.parse(stored) : [];
-  }, []);
-
   // Calculate today's visitors
   const todayVisitors = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return visitors.filter(v => {
+      if (!v.checkInTime) return false;
       const checkInDate = new Date(v.checkInTime);
       checkInDate.setHours(0, 0, 0, 0);
       return checkInDate.getTime() === today.getTime();
@@ -175,7 +224,7 @@ function ReceptionistDashboard() {
 
   // Calculate unread messages
   const pendingMessages = useMemo(() => {
-    return messages.filter(m => !m.isRead).length;
+    return messages.filter(m => !m.isRead && m.senderType === 'client').length;
   }, [messages]);
 
   // Calculate conversions today (visitors converted to clients)
@@ -184,20 +233,32 @@ function ReceptionistDashboard() {
     today.setHours(0, 0, 0, 0);
     return visitors.filter(v => {
       if (v.status !== 'converted') return false;
+      if (!v.checkInTime) return false;
       const checkInDate = new Date(v.checkInTime);
       checkInDate.setHours(0, 0, 0, 0);
       return checkInDate.getTime() === today.getTime();
     }).length;
   }, [visitors]);
 
+  const isCompact = user?.compactView ?? false;
+  const showWelcome = user?.showWelcome ?? true;
+  const showQuickActions = user?.showQuickActions ?? true;
+  
+  const spaceClass = isCompact ? "space-y-3" : "space-y-6";
+  const gapClass = isCompact ? "gap-3" : "gap-6";
+
   return (
-    <div className="space-y-6">
+    <div className={spaceClass}>
+      <WelcomeBanner roleName="Reception" isVisible={showWelcome} />
+
       <div>
         <h1 className="text-2xl font-bold">Reception Dashboard</h1>
         <p className="text-muted-foreground">Front desk operations</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <QuickActionsPanel isVisible={showQuickActions} />
+
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${gapClass}`}>
         <StatCard
           title="Today's Visitors"
           value={todayVisitors.length.toString()}
@@ -222,11 +283,72 @@ function ReceptionistDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={`grid lg:grid-cols-3 ${gapClass}`}>
         <div className="lg:col-span-2">
           <RecentVisitors />
         </div>
-        <TodayTasksCard />
+        <TaskList />
+      </div>
+    </div>
+  );
+}
+
+function EmployeeDashboard() {
+  const { user } = useAuth();
+  const { data: employees = [] } = useEmployees();
+  
+  // Find current employee record
+  const currentEmployee = useMemo(() => {
+    return employees.find(e => e.email === user?.email);
+  }, [employees, user]);
+
+  const isCompact = user?.compactView ?? false;
+  const showWelcome = user?.showWelcome ?? true;
+  const showQuickActions = user?.showQuickActions ?? true;
+  
+  const spaceClass = isCompact ? "space-y-3" : "space-y-6";
+  const gapClass = isCompact ? "gap-3" : "gap-6";
+
+  return (
+    <div className={spaceClass}>
+      <WelcomeBanner roleName="Employee" isVisible={showWelcome} />
+
+      <div>
+        <h1 className="text-2xl font-bold">My Dashboard</h1>
+        <p className="text-muted-foreground">Your personal task and workspace overview</p>
+      </div>
+
+      <QuickActionsPanel isVisible={showQuickActions} />
+
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${gapClass}`}>
+        <StatCard
+          title="Assigned Tasks"
+          value="12" // TODO: Fetch real personal stats
+          icon={<CheckSquare className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Completed"
+          value="48"
+          icon={<UserCheck className="h-5 w-5" />}
+          variant="accent"
+        />
+        <StatCard
+          title="Avg. Completion"
+          value="2.4 days"
+          icon={<Clock className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Active Clients"
+          value="5"
+          icon={<Users className="h-5 w-5" />}
+        />
+      </div>
+
+      <div className={`grid lg:grid-cols-3 ${gapClass}`}>
+        <div className="lg:col-span-2">
+          <TaskList employeeId={currentEmployee?.id} />
+        </div>
+        <RecentActivities />
       </div>
     </div>
   );
@@ -242,6 +364,7 @@ export default function Dashboard() {
       {user.role === 'super_admin' && <SuperAdminDashboard />}
       {user.role === 'manager' && <ManagerDashboard />}
       {user.role === 'receptionist' && <ReceptionistDashboard />}
+      {user.role === 'employee' && <EmployeeDashboard />}
     </DashboardLayout>
   );
 }

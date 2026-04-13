@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { FilterBar, FilterTextInput, FilterDropdown } from '@/components/filters';
 import { WorkloadDialog } from '@/components/dialogs/WorkloadDialog';
@@ -397,7 +397,7 @@ export default function Employees() {
             activeFilterCount={activeFilterCount} 
             onClearAll={clearAllFilters}
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FilterTextInput
                 label="Name"
                 value={filters.name}
@@ -450,9 +450,14 @@ export default function Employees() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {employee.name.split(' ').map(n => n[0]).join('')}
+                    <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+                      <AvatarImage 
+                        src={employee.avatarUrl ? `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000'}${employee.avatarUrl}` : undefined} 
+                        alt={employee.name}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                        {employee.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>

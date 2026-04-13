@@ -22,6 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // If no user → redirect to appropriate login
   if (!isAuthenticated || !user) {
+    console.warn(`🔐 Unauthorized access blocked: Attempted to reach ${location.pathname} without authentication.`);
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 

@@ -31,16 +31,25 @@ export function RecentVisitors() {
     
     return allVisitors
       .filter(v => {
+        if (!v.checkInTime) return false;
         const checkInDate = new Date(v.checkInTime);
+        if (isNaN(checkInDate.getTime())) return false;
+        
         checkInDate.setHours(0, 0, 0, 0);
         return checkInDate.getTime() === today.getTime();
       })
-      .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime())
+      .sort((a, b) => {
+        if (!a.checkInTime) return 1;
+        if (!b.checkInTime) return -1;
+        return new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime();
+      })
       .slice(0, 4); // Show only 4 most recent
   }, [allVisitors]);
 
-  const formatTime = (dateString: string) => {
+  const formatTime = (dateString?: string | Date | null) => {
+    if (!dateString) return '—';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '—';
     return date.toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',

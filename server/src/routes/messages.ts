@@ -4,8 +4,23 @@ import { getIO } from '../socket.js';
 
 const router = express.Router();
 
-// Get all conversations for an employee
-router.get('/conversations/:employeeId', async (req, res) => {
+// Get all messages (Dashboard overview) - Using POST as requested
+router.post('/all', async (req, res) => {
+    try {
+        const messages = await prisma.message.findMany({
+            orderBy: { timestamp: 'desc' },
+            take: 100 // Limit to last 100 for performance
+        });
+        res.json(messages);
+    } catch (error: any) {
+        console.error('Error fetching all messages:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// Get all conversations for an employee - POST (PUSH)
+router.post('/conversations/:employeeId/list', async (req, res) => {
     try {
         const { employeeId } = req.params;
         
@@ -30,6 +45,7 @@ router.get('/conversations/:employeeId', async (req, res) => {
                         name: true,
                         email: true,
                         company: true,
+                        avatarUrl: true,
                     },
                 });
 
@@ -48,8 +64,8 @@ router.get('/conversations/:employeeId', async (req, res) => {
     }
 });
 
-// Get messages for a conversation
-router.get('/conversation/:conversationId', async (req, res) => {
+// Get messages for a conversation - POST (PUSH)
+router.post('/conversation/:conversationId/list', async (req, res) => {
     try {
         const { conversationId } = req.params;
         const { limit = 50, before } = req.query;
@@ -353,8 +369,8 @@ router.delete('/:messageId', async (req, res) => {
     }
 });
 
-// Search messages
-router.get('/search', async (req, res) => {
+// Search messages - POST (PUSH)
+router.post('/search/list', async (req, res) => {
     try {
         const { query, conversationId } = req.query;
 

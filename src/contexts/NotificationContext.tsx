@@ -34,13 +34,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000
 const API_URL = API_BASE_URL;
 const SOCKET_URL = API_BASE_URL.replace('/api', '');
 
-console.log('🔔 NotificationContext initialized:', {
-  API_URL,
-  SOCKET_URL,
-  env: import.meta.env.VITE_API_BASE_URL,
-  mode: import.meta.env.MODE
-});
-
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -48,41 +41,39 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Fetch notifications from REST API
+  // Fetch notifications from REST API - Updated to use POST (PUSH)
   const fetchNotifications = useCallback(async () => {
     if (!user) {
-      console.log('🔔 No user, skipping notification fetch');
       setNotifications([]);
       setUnreadCount(0);
       setLoading(false);
       return;
     }
 
-    console.log('🔔 Fetching notifications for user:', user.id, 'from:', API_URL);
-
     try {
-      const url = `${API_URL}/notifications?userId=${user.id}&limit=50`;
-      console.log('🔔 Fetching from URL:', url);
-      
-      const response = await fetch(url);
-      console.log('🔔 Response status:', response.status, response.statusText);
+      // Changed to POST /list as requested earlier
+      const response = await fetch(`${API_URL}/notifications/list`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': String(user.id)
+        },
+        body: JSON.stringify({ 
+          userId: user.id,
+          limit: 50 
+        })
+      });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('🔔 Response error:', errorText);
         throw new Error('Failed to fetch notifications');
       }
       
       const data = await response.json();
-      console.log('🔔 Fetched notifications:', data);
-      
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
-      
-      console.log('🔔 Set notifications:', data.notifications?.length, 'unread:', data.unreadCount);
     } catch (error) {
       console.error('🔔 Error fetching notifications:', error);
-      toast.error('Failed to load notifications');
+      // Silently fail to avoid toast floods during auth transitions
     } finally {
       setLoading(false);
     }
@@ -90,10 +81,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // Initialize Socket.io connection
   useEffect(() => {
-    console.log('🔔 NotificationContext: Initializing...', { user });
-    
     if (!user) {
-      // Disconnect socket if user logs out
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -101,12 +89,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    console.log('🔔 NotificationContext: User logged in, connecting socket...', user.id);
-
-    // Connect to Socket.io server
     const newSocket = io(SOCKET_URL, {
       auth: {
-        token: 'dummy-token', // In production, use real JWT token
+        token: 'dummy-token',
         userId: user.id
       },
       reconnection: true,
@@ -114,27 +99,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       reconnectionAttempts: 5
     });
 
-    newSocket.on('connect', () => {
-      console.log('✅ Connected to notification server');
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from notification server');
-    });
-
-    newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
-
-    // Listen for incoming notifications
     newSocket.on('notification', (notification: Notification) => {
-      console.log('📬 New notification received:', notification);
-
-      // Add to notifications list
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
 
-      // Show toast notification
       const priorityEmoji = {
         low: '📝',
         normal: '📬',
@@ -145,107 +113,61 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       toast(notification.title, {
         description: notification.message,
         icon: priorityEmoji,
-        action: notification.actionUrl ? {
-          label: 'View',
-          onClick: () => {
-            if (notification.actionUrl) {
-              window.location.href = notification.actionUrl;
-            }
-          }
-        } : undefined,
         duration: notification.priority === 'urgent' ? 10000 : 5000
       });
-
-      // Optional: Send acknowledgment to server
-      newSocket.emit('notification:received', notification.id);
     });
 
     setSocket(newSocket);
-
-    // Cleanup on unmount
     return () => {
       newSocket.disconnect();
     };
   }, [user]);
 
-  // Fetch notifications on mount
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Mark single notification as read
   const markAsRead = async (id: number) => {
     if (!user) return;
-
     try {
-      console.log('🔔 Marking notification as read:', id, 'for user:', user.id);
-      
       const response = await fetch(`${API_URL}/notifications/${id}/read?userId=${user.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
-      console.log('🔔 Mark as read response:', response.status, response.statusText);
+      if (!response.ok) throw new Error('Failed to mark as read');
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Failed to mark as read:', errorText);
-        throw new Error('Failed to mark as read');
-      }
-
-      const data = await response.json();
-      console.log('✅ Marked as read successfully:', data);
-
-      // Update local state
       setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
-      
-      toast.success('Notification marked as read');
     } catch (error) {
-      console.error('❌ Error marking notification as read:', error);
       toast.error('Failed to mark notification as read');
     }
   };
 
-  // Mark all notifications as read
   const markAllAsRead = async () => {
     if (!user) return;
-
     try {
       const response = await fetch(`${API_URL}/notifications/read-all?userId=${user.id}`, {
         method: 'PATCH'
       });
-
       if (!response.ok) throw new Error('Failed to mark all as read');
-
-      // Update local state
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, read: true }))
-      );
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
       toast.success('All notifications marked as read');
     } catch (error) {
-      console.error('Error marking all as read:', error);
       toast.error('Failed to mark all as read');
     }
   };
 
-  // Delete notification
   const deleteNotification = async (id: number) => {
     if (!user) return;
-
     try {
       const response = await fetch(`${API_URL}/notifications/${id}?userId=${user.id}`, {
         method: 'DELETE'
       });
-
       if (!response.ok) throw new Error('Failed to delete notification');
-
-      // Update local state
       const notification = notifications.find(n => n.id === id);
       setNotifications(prev => prev.filter(n => n.id !== id));
       if (notification && !notification.read) {
@@ -253,7 +175,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
       toast.success('Notification deleted');
     } catch (error) {
-      console.error('Error deleting notification:', error);
       toast.error('Failed to delete notification');
     }
   };

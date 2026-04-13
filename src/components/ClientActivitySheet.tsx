@@ -130,7 +130,10 @@ const getActionColor = (action: string) => {
 
 // Fetch client activity
 const fetchClientActivity = async (clientId: string, page: number = 1): Promise<ActivityResponse> => {
-  const response = await fetch(`http://localhost:3000/api/clients/${clientId}/activity?page=${page}&limit=50`);
+  const response = await fetch(`http://localhost:3000/api/clients/${clientId}/activity/list?page=${page}&limit=50`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch client activity');
   }

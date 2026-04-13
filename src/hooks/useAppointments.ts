@@ -60,7 +60,10 @@ export function useAppointments() {
       if (filters?.status) params.append('status', filters.status);
       if (filters?.date) params.append('date', filters.date);
 
-      const response = await fetch(`${API_URL}/appointments?${params}`);
+      const response = await fetch(`${API_URL}/appointments/list?${params}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       if (!response.ok) throw new Error('Failed to fetch appointments');
 
       const data = await response.json();
@@ -88,7 +91,10 @@ export function useAppointments() {
       const params = new URLSearchParams();
       if (employeeId) params.append('employeeId', employeeId);
 
-      const response = await fetch(`${API_URL}/appointments/today?${params}`);
+      const response = await fetch(`${API_URL}/appointments/today?${params}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       if (!response.ok) throw new Error('Failed to fetch today\'s appointments');
 
       const data = await response.json();

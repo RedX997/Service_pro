@@ -19,9 +19,12 @@ import TimeTracking from "./pages/TimeTracking";
 import Employees from "./pages/Employees";
 import Departments from "./pages/Departments";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
+import Support from "./pages/Support";
 import Reports from "./pages/Reports";
 import Appointments from "./pages/Appointments";
 import Tasks from "./pages/Tasks";
+import Services from "./pages/Services";
 import AuthDemo from "./pages/AuthDemo";
 import ProtectedRouteDemo from "./pages/ProtectedRouteDemo";
 import RBACTest from "./pages/RBACTest";
@@ -35,19 +38,24 @@ const queryClient = new QueryClient();
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/diagnostic" element={<DiagnosticTest />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
-      <Route path="/auth-demo" element={<AuthDemo />} />
-      <Route path="/protected-demo" element={<ProtectedRouteDemo />} />
-      <Route path="/rbac-test" element={<RBACTest />} />
+      
+      {/* Development/Testing Routes - Only accessible in development */}
+      {import.meta.env.MODE === 'development' && (
+        <>
+          <Route path="/diagnostic" element={<DiagnosticTest />} />
+          <Route path="/auth-demo" element={<AuthDemo />} />
+          <Route path="/rbac-test" element={<RBACTest />} />
+        </>
+      )}
       
       {/* MAIN DASHBOARD - Role-based content inside */}
       <Route 
         path="/dashboard" 
         element={
-          <ProtectedRoute requiredRole="receptionist">
+          <ProtectedRoute requiredRole="employee">
             <Dashboard />
           </ProtectedRoute>
         } 
@@ -99,7 +107,7 @@ function AppRoutes() {
       <Route 
         path="/messages" 
         element={
-          <ProtectedRoute requiredRole="receptionist">
+          <ProtectedRoute requiredRole="employee">
             <Messages />
           </ProtectedRoute>
         } 
@@ -129,9 +137,33 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/settings" 
+        path="/services" 
         element={
           <ProtectedRoute requiredRole="super_admin">
+            <Services />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute requiredRole="employee">
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/support" 
+        element={
+          <ProtectedRoute requiredRole="employee">
+            <Support />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute requiredRole="employee">
             <Settings />
           </ProtectedRoute>
         } 
@@ -147,7 +179,7 @@ function AppRoutes() {
       <Route 
         path="/appointments" 
         element={
-          <ProtectedRoute requiredRole="receptionist">
+          <ProtectedRoute requiredRole="employee">
             <Appointments />
           </ProtectedRoute>
         } 
@@ -155,7 +187,7 @@ function AppRoutes() {
       <Route 
         path="/tasks" 
         element={
-          <ProtectedRoute requiredRole="receptionist">
+          <ProtectedRoute requiredRole="employee">
             <Tasks />
           </ProtectedRoute>
         } 

@@ -21,7 +21,7 @@ export function ClientAssignment() {
       .map(c => ({
         id: c.id,
         name: c.name,
-        service: c.service || 'General Service',
+        service: (c.services && c.services.length > 0) ? c.services[0] : 'General Service',
         since: 'Recently added'
       }));
   }, [clients]);

@@ -14,7 +14,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, RefreshCw, ShieldCheck, UserX, UserCheck, LogOut, Eye, EyeOff, Clock, Copy, CheckCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Loader2, Plus, RefreshCw, ShieldCheck, UserX, UserCheck, LogOut, Eye, EyeOff, Clock, Copy, CheckCheck, MessageCircle, Send } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { useSupportTickets, useUpdateSupportTicket, useReplyToSupportTicket, SupportTicket } from '@/hooks/useSupport';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
@@ -53,11 +56,15 @@ const roleBadgeClass: Record<string, string> = {
   super_admin: 'bg-orange-100 text-orange-800',
 };
 
+import { formatDistanceToNow } from 'date-fns';
+
 export default function CascadeAdminDashboard() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [credentials, setCredentials] = useState<CredentialRecord[]>([]);
+  const { data: tickets = [], isLoading: ticketsLoading } = useSupportTickets();
+  const updateTicketMutation = useUpdateSupportTicket();
   const [loading, setLoading] = useState(true);
   const [credsLoading, setCredsLoading] = useState(true);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set());
@@ -71,6 +78,9 @@ export default function CascadeAdminDashboard() {
   const [form, setForm] = useState({ fullName: '', personalEmail: '', role: '' });
   const [credModal, setCredModal] = useState<{ name: string; systemEmail: string; password: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const replyMutation = useReplyToSupportTicket();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -79,7 +89,7 @@ export default function CascadeAdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/cascade-admin/users`, { headers });
+      const res = await fetch(`${API_URL}/cascade-admin/users/list`, { method: 'POST', headers });
       if (res.ok) setUsers(await res.json());
     } catch (err) {
       console.error('Failed to fetch users', err);
@@ -90,7 +100,7 @@ export default function CascadeAdminDashboard() {
 
   const fetchCredentials = async () => {
     try {
-      const res = await fetch(`${API_URL}/cascade-admin/credentials`, { headers });
+      const res = await fetch(`${API_URL}/cascade-admin/credentials/list`, { method: 'POST', headers });
       if (res.ok) setCredentials(await res.json());
     } catch (err) {
       console.error('Failed to fetch credentials', err);
@@ -115,7 +125,7 @@ export default function CascadeAdminDashboard() {
     setSessionsLoading(true);
     setSessions([]);
     try {
-      const res = await fetch(`${API_URL}/cascade-admin/users/${userId}/sessions`, { headers });
+      const res = await fetch(`${API_URL}/cascade-admin/users/${userId}/sessions`, { method: 'POST', headers });
       if (res.ok) setSessions(await res.json());
     } catch {}
     finally { setSessionsLoading(false); }
@@ -236,6 +246,18 @@ export default function CascadeAdminDashboard() {
     super_admin: users.filter(u => u.role.role_name === 'super_admin').length,
   };
 
+  const handleReplySubmit = async () => {
+    if (!selectedTicket || !replyText.trim()) return;
+    try {
+      await replyMutation.mutateAsync({ id: selectedTicket.id, reply: replyText });
+      toast({ title: 'Reply Sent', description: 'The ticket has been marked as resolved.' });
+      setSelectedTicket(null);
+      setReplyText('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -281,6 +303,7 @@ export default function CascadeAdminDashboard() {
           <TabsList>
             <TabsTrigger value="users">Managed Users</TabsTrigger>
             <TabsTrigger value="credentials">Credentials Log</TabsTrigger>
+            <TabsTrigger value="tickets">User Complaints</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -301,7 +324,7 @@ export default function CascadeAdminDashboard() {
                   <p className="text-center text-muted-foreground py-12">No users yet. Create the first one.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm min-w-[900px]">
                       <thead>
                         <tr className="border-b text-left text-muted-foreground">
                           <th className="pb-3 pr-4 font-medium">Name</th>
@@ -396,7 +419,7 @@ export default function CascadeAdminDashboard() {
                   <p className="text-center text-muted-foreground py-12">No credentials logged yet.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm min-w-[900px]">
                       <thead>
                         <tr className="border-b text-left text-muted-foreground">
                           <th className="pb-3 pr-4 font-medium">Name</th>
@@ -441,6 +464,98 @@ export default function CascadeAdminDashboard() {
                             </td>
                             <td className="py-3 text-muted-foreground text-xs">
                               {new Date(c.created_at).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tickets">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Complaints & Tickets</CardTitle>
+                <p className="text-sm text-muted-foreground">Support requests and complaints submitted via the dashboard.</p>
+              </CardHeader>
+              <CardContent>
+                {ticketsLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : tickets.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-12">No support tickets found.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[900px]">
+                      <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                          <th className="pb-3 pr-4 font-medium">Ticket ID</th>
+                          <th className="pb-3 pr-4 font-medium">Subject</th>
+                          <th className="pb-3 pr-4 font-medium">Category</th>
+                          <th className="pb-3 pr-4 font-medium">Submitted By</th>
+                          <th className="pb-3 pr-4 font-medium">Urgency</th>
+                          <th className="pb-3 pr-4 font-medium text-center">Status</th>
+                          <th className="pb-3 pr-4 font-medium text-center">Date</th>
+                          <th className="pb-3 font-medium text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {tickets.map(t => (
+                          <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 pr-4 font-medium text-primary text-[10px] uppercase">{t.id.slice(0, 8)}</td>
+                            <td className="py-3 pr-4">
+                              <div className="font-medium text-slate-800">{t.subject}</div>
+                              {t.adminReply && (
+                                <div className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
+                                  <CheckCheck className="h-2.5 w-2.5" /> Replied
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 pr-4 text-muted-foreground capitalize">{t.category}</td>
+                            <td className="py-3 pr-4 text-muted-foreground">
+                              {t.user?.name}
+                              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium uppercase tracking-wider">
+                                {t.user?.role?.role_name?.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <Badge className={cn(
+                                "capitalize shadow-none border-0 block text-center",
+                                t.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                t.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                t.priority === 'medium' ? 'bg-amber-100 text-amber-800' :
+                                'bg-gray-100 text-gray-800'
+                              )}>{t.priority}</Badge>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <Badge className={cn(
+                                "capitalize shadow-none border-0 block text-center",
+                                t.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                                t.status === 'in_progress' ? 'bg-amber-100 text-amber-800' :
+                                t.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                                'bg-gray-100 text-gray-600'
+                              )}>{t.status.replace('_', ' ')}</Badge>
+                            </td>
+                            <td className="py-3 pr-4 text-muted-foreground text-xs whitespace-nowrap">
+                              {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
+                            </td>
+                            <td className="py-3 text-right">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 px-3"
+                                onClick={() => {
+                                  setSelectedTicket(t);
+                                  setReplyText(t.adminReply || '');
+                                }}
+                              >
+                                <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                                {t.status === 'resolved' ? 'View' : 'Reply'}
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -609,6 +724,73 @@ export default function CascadeAdminDashboard() {
           )}
           <DialogFooter>
             <Button onClick={() => setCredModal(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Detail & Reply Dialog */}
+      <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Handle Support Ticket</DialogTitle>
+            <DialogDescription>
+              Review the issue and provide a resolution to the user.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTicket && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-mono">#{selectedTicket.id.slice(0, 8)}</span>
+                  <span className="text-muted-foreground">{new Date(selectedTicket.createdAt).toLocaleString()}</span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">{selectedTicket.subject}</h4>
+                  <div className="mt-1.5 p-3 rounded-lg bg-slate-50 border text-sm text-slate-700 whitespace-pre-wrap">
+                    {selectedTicket.message}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs text-muted-foreground">
+                    From: <span className="font-medium text-slate-800">{selectedTicket.user?.name}</span>
+                  </div>
+                  <Badge className="h-5 text-[10px] bg-slate-100 text-slate-500 border-0">{selectedTicket.category}</Badge>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <Label className="text-sm font-medium">Admin Resolution Reply</Label>
+                <Textarea 
+                  placeholder="Explain how the issue was resolved or provide an answer..."
+                  className="min-h-[120px] text-sm resize-none"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  readOnly={selectedTicket.status === 'resolved'}
+                />
+                {selectedTicket.status === 'resolved' && (
+                  <p className="text-[10px] text-green-600 italic">
+                    Ticket resolved on {new Date(selectedTicket.resolvedAt || '').toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedTicket(null)}>
+              {selectedTicket?.status === 'resolved' ? 'Close' : 'Cancel'}
+            </Button>
+            {selectedTicket?.status !== 'resolved' && (
+              <Button 
+                onClick={handleReplySubmit} 
+                disabled={replyMutation.isPending || !replyText.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {replyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Send Reply & Resolve
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Clock, ArrowRight } from 'lucide-react';
+import { Plus, Clock, ArrowRight, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ interface Task {
   status: string;
   dueDate?: string;
   completedAt?: string;
+  createdAt?: string;
 }
 
 export function TodayTasksCard() {
@@ -39,21 +40,26 @@ export function TodayTasksCard() {
   console.log('TodayTasksCard - API_URL:', API_URL);
 
   useEffect(() => {
-    fetchTodayTasks();
+    fetchRecentTasks();
   }, []);
 
-  const fetchTodayTasks = async () => {
+  const fetchRecentTasks = async () => {
     try {
-      console.log('Fetching tasks from:', `${API_URL}/tasks/today`);
-      const response = await fetch(`${API_URL}/tasks/today`);
-      console.log('Response status:', response.status);
+      const response = await fetch(`${API_URL}/tasks/list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Tasks received:', data);
-        setTasks(data); // Show all today's tasks, not just 5
+        // Sort by most recently created and grab the top 2
+        const sortedData = data.sort((a: Task, b: Task) => {
+          const dateA = new Date(a.createdAt || 0).getTime();
+          const dateB = new Date(b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+        setTasks(sortedData.slice(0, 2));
       } else {
-        console.error('Failed to fetch tasks:', response.status, response.statusText);
         toast.error('Failed to load tasks');
       }
     } catch (error) {
@@ -93,7 +99,7 @@ export function TodayTasksCard() {
         toast.success('Task added successfully');
         setIsAddDialogOpen(false);
         setNewTask({ title: '', description: '', priority: 'medium', dueDate: '', dueTime: '' });
-        fetchTodayTasks();
+        fetchRecentTasks();
       } else {
         toast.error('Failed to add task');
       }
@@ -163,115 +169,96 @@ export function TodayTasksCard() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+    <div className="bg-card rounded-xl border shadow-card animate-slide-up">
+      <div className="p-6 pb-4 flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Today's Tasks</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">Your to-do list & reminders</p>
+          <h3 className="font-semibold text-lg text-foreground">My Tasks</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">Your upcoming tasks</p>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate('/tasks')}
-          className="text-primary hover:text-primary"
+          className="text-sm font-medium text-foreground hover:bg-transparent"
         >
-          View All <ArrowRight className="ml-1 h-4 w-4" />
+          View All
         </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {tasks.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground mb-4">No tasks for today</p>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Task</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div>
-                    <Input
-                      placeholder="Task title"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Textarea
-                      placeholder="Description (optional)"
-                      value={newTask.description}
-                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Select value={newTask.priority} onValueChange={(value) => setNewTask({ ...newTask, priority: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low Priority</SelectItem>
-                        <SelectItem value="medium">Medium Priority</SelectItem>
-                        <SelectItem value="high">High Priority</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="date"
-                      value={newTask.dueDate}
-                      onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                    />
-                    <Input
-                      type="time"
-                      value={newTask.dueTime}
-                      onChange={(e) => setNewTask({ ...newTask, dueTime: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAddTask}>
-                      Add Task
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+      </div>
+      <div className="px-4 pb-4">
+        <div className="border rounded-xl p-4 shadow-sm bg-card">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h4 className="font-semibold text-foreground leading-tight">Tasks & Reminders</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">Your upcoming tasks and reminders</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/tasks')}
+              className="text-xs font-medium text-foreground hover:bg-muted h-8 px-2"
+            >
+              View All
+            </Button>
           </div>
-        ) : (
-          <>
-            {/* Scrollable task list with max height */}
-            <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
-                >
-                  <Checkbox
-                    checked={task.status === 'completed'}
-                    onCheckedChange={() => handleToggleComplete(task.id, task.status)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
-                      {task.title}
-                    </p>
-                    <div className={`flex items-center gap-1 text-xs mt-1 ${getTaskColor(task)}`}>
-                      <Clock className="h-3 w-3" />
-                      <span>{formatDueDate(task.dueDate)}</span>
+          
+          <div className="space-y-3">
+            {tasks.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                No recent tasks
+              </div>
+            ) : (
+              <div className="max-h-[300px] overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                {tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-start gap-3 p-3 rounded-xl border hover:bg-muted/50 transition-colors bg-card shadow-sm"
+                  >
+                    <button
+                      onClick={() => handleToggleComplete(task.id, task.status)}
+                      className={`mt-0.5 flex items-center justify-center h-5 w-5 rounded-full border flex-shrink-0 transition-colors ${
+                        task.status === 'completed' 
+                          ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                          : 'bg-card text-transparent border-input hover:border-gray-400'
+                      }`}
+                    >
+                       <Check className="h-3 w-3" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold text-foreground ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <div className="flex items-center text-xs font-medium text-muted-foreground gap-1">
+                          <Clock className="h-3 w-3 opacity-70" />
+                          {formatDueDate(task.dueDate)}
+                        </div>
+                        {task.priority === 'high' && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-700 border border-red-100">
+                            High
+                          </span>
+                        )}
+                        {task.priority === 'urgent' && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800 border border-red-200">
+                            Urgent
+                          </span>
+                        )}
+                        {task.status === 'pending' && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-100">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                          {task.description}
+                        </p>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+            
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full mt-2">
@@ -329,9 +316,9 @@ export function TodayTasksCard() {
                 </div>
               </DialogContent>
             </Dialog>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

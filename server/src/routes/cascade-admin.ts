@@ -49,8 +49,8 @@ function generatePassword(): string {
   return crypto.randomBytes(9).toString('base64'); // 12 chars, mixed
 }
 
-// GET /api/cascade-admin/credentials — full credential log (company only)
-router.get('/credentials', requireCascadeAdmin, async (req, res) => {
+// GET /api/cascade-admin/credentials — changed to POST (PUSH)
+router.post('/credentials/list', requireCascadeAdmin, async (req, res) => {
   try {
     const credentials = await prisma.cascadeCredential.findMany({
       orderBy: { created_at: 'desc' },
@@ -76,8 +76,8 @@ router.patch('/credentials/:id', requireCascadeAdmin, async (req, res) => {
   }
 });
 
-// GET /api/cascade-admin/users/:id/sessions — login history for a user
-router.get('/users/:id/sessions', requireCascadeAdmin, async (req, res) => {
+// GET /api/cascade-admin/users/:id/sessions — changed to POST (PUSH)
+router.post('/users/:id/sessions', requireCascadeAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const sessions = await prisma.userSession.findMany({
@@ -91,8 +91,8 @@ router.get('/users/:id/sessions', requireCascadeAdmin, async (req, res) => {
   }
 });
 
-// GET /api/cascade-admin/users — list all managed users
-router.get('/users', requireCascadeAdmin, async (req, res) => {
+// GET /api/cascade-admin/users — changed to POST (PUSH)
+router.post('/users/list', requireCascadeAdmin, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: {

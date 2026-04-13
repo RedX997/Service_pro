@@ -9,8 +9,23 @@ import { LocalStorage } from '@/lib/storage';
 // Feature flag for using real API
 const USE_API = import.meta.env.VITE_USE_API === 'true';
 
-class ClientApiService extends BaseApiService<Client> {
+interface IClientService extends IBaseService<Client> {
+    getAllActivity(limit?: number): Promise<any[]>;
+}
+
+class ClientApiService extends BaseApiService<Client> implements IClientService {
     protected endpoint = '/clients';
+
+    // Converted to POST (PUSH)
+    async getAllActivity(limit: number = 10): Promise<any[]> {
+        return apiClient.post(`${this.endpoint}/all-activity?limit=${limit}`, {});
+    }
+}
+
+class ClientMockService extends MockService<Client> implements IClientService {
+    async getAllActivity(limit: number = 10): Promise<any[]> {
+        return []; // Mocks don't have global activity logs currently
+    }
 }
 
 class EmployeeApiService extends BaseApiService<Employee> {
@@ -89,7 +104,8 @@ class TimeTrackingApiService extends BaseApiService<TimeEntry> implements ITimeT
     protected endpoint = '/time-entries';
 
     async getActiveTimer(employeeId: string): Promise<ActiveTimer | null> {
-        return apiClient.get<ActiveTimer | null>(`${this.endpoint}/active/${employeeId}`);
+        // Converted to POST (PUSH)
+        return apiClient.post<ActiveTimer | null>(`${this.endpoint}/active/${employeeId}`, {});
     }
 
     async startTimer(timer: Omit<ActiveTimer, 'id' | 'startTime' | 'createdAt'>): Promise<ActiveTimer> {
@@ -147,9 +163,9 @@ class TimeTrackingMockService extends MockService<TimeEntry> implements ITimeTra
     }
 }
 
-export const clientService = USE_API
+export const clientService: IClientService = USE_API
     ? new ClientApiService()
-    : new MockService<Client>(STORAGE_KEYS.CLIENTS, initialClients);
+    : new ClientMockService(STORAGE_KEYS.CLIENTS, initialClients);
 
 export const employeeService = USE_API
     ? new EmployeeApiService()
@@ -179,3 +195,4 @@ export const timeTrackingService = USE_API
         ...e,
         createdAt: e.startTime || new Date(),
     })));
+export { apiClient };

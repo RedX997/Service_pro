@@ -21,6 +21,20 @@ class ApiClient {
         this.instance.interceptors.request.use(
             (config) => {
                 console.log('API Request:', config.method?.toUpperCase(), config.url);
+                
+                // Add user ID to headers for server-side auth
+                try {
+                    const storedUser = localStorage.getItem('servicepro_auth_user');
+                    if (storedUser) {
+                        const user = JSON.parse(storedUser);
+                        if (user && user.id) {
+                            config.headers['x-user-id'] = user.id.toString();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error adding x-user-id header:', e);
+                }
+                
                 return config;
             },
             (error) => {

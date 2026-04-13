@@ -3,8 +3,8 @@ import { prisma } from '../lib/prisma.js';
 
 const router = express.Router();
 
-// Get all employees
-router.get('/', async (req, res) => {
+// Get all employees - POST (PUSH)
+router.post('/list', async (req, res) => {
     try {
         const employees = await prisma.employee.findMany({
             orderBy: { createdAt: 'desc' },
@@ -40,8 +40,8 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
-// Get employee by ID
-router.get('/:id', async (req, res) => {
+// Get employee by ID - POST (PUSH)
+router.post('/details/:id', async (req, res) => {
     try {
         const employee = await prisma.employee.findUnique({
             where: { id: req.params.id },

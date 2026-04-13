@@ -451,7 +451,7 @@ export default function Clients() {
             activeFilterCount={activeFilterCount} 
             onClearAll={clearAllFilters}
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FilterTextInput
                 label="Company"
                 value={filters.company}
@@ -504,7 +504,8 @@ export default function Clients() {
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Company</TableHead>
@@ -614,6 +615,7 @@ export default function Clients() {
                 )}
               </TableBody>
             </Table>
+          </div>
           )}
         </div>
       </div>

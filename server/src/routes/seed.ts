@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js';
 
 const router = Router();
 
-router.get('/run', async (req, res) => {
+router.post('/run', async (req, res) => {
   try {
     // Check if already seeded
     const existingClients = await prisma.client.count();

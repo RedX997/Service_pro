@@ -4,6 +4,10 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { prisma } from './lib/prisma.js';
 import { initializeSocket } from './socket.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const UPLOADS_PATH = path.resolve(process.cwd(), 'uploads');
 
 dotenv.config();
 
@@ -27,6 +31,7 @@ import notificationRoutes from './routes/notifications.js';
 import testNotificationRoutes from './routes/test-notification.js';
 import appointmentRoutes from './routes/appointments.js';
 import cascadeAdminRoutes from './routes/cascade-admin.js';
+import supportRoutes from './routes/support.js';
 import { scheduleAllUpcomingReminders } from './helpers/appointmentReminders.js';
 
 app.use(cors({
@@ -67,6 +72,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
 }));
 app.use(express.json());
+app.use('/uploads', express.static(UPLOADS_PATH));
+console.log('Static files served from:', UPLOADS_PATH);
 
 // Basic health check route
 app.get('/health', (req, res) => {
@@ -94,6 +101,8 @@ app.use('/api/appointments', appointmentRoutes);
 console.log('Appointment routes registered at /api/appointments');
 app.use('/api/cascade-admin', cascadeAdminRoutes);
 console.log('Cascade admin routes registered at /api/cascade-admin');
+app.use('/api/support', supportRoutes);
+console.log('Support routes registered at /api/support');
 
 httpServer.listen(port, () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);

@@ -425,7 +425,8 @@ export default function Visitors() {
     );
   };
 
-  const getWaitTime = (checkInTime: Date | string) => {
+  const getWaitTime = (checkInTime?: Date | string | null) => {
+    if (!checkInTime) return '0m';
     const now = new Date();
     const checkIn = typeof checkInTime === 'string' ? new Date(checkInTime) : checkInTime;
     const diffMs = now.getTime() - checkIn.getTime();
@@ -481,7 +482,7 @@ export default function Visitors() {
             activeFilterCount={activeFilterCount} 
             onClearAll={clearAllFilters}
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FilterTextInput
                 label="Name"
                 value={filters.name}

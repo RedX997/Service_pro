@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, Send, MoreVertical, AlertTriangle, Check, CheckCheck, Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getAvatarUrl } from '@/utils/auth';
+import { Search, Send, MoreVertical, AlertTriangle, Check, CheckCheck, Loader2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMessaging } from '@/hooks/useMessaging';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ interface Client {
   name: string;
   email: string;
   company?: string;
+  avatarUrl?: string;
 }
 
 interface Conversation {
@@ -70,8 +72,11 @@ export default function Messages() {
     try {
       setLoading(true);
       
-      // Fetch existing conversations
-      const convResponse = await fetch(`${API_URL}/messages/conversations/${CURRENT_USER_ID}`);
+      // Fetch existing conversations - POST (PUSH)
+      const convResponse = await fetch(`${API_URL}/messages/conversations/${CURRENT_USER_ID}/list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       let existingConversations: Conversation[] = [];
       
       if (convResponse.ok) {
@@ -79,8 +84,11 @@ export default function Messages() {
         existingConversations = data.filter((conv: Conversation) => conv.client);
       }
       
-      // Fetch all clients
-      const clientsResponse = await fetch(`${API_URL}/clients`);
+      // Fetch all clients - POST (PUSH)
+      const clientsResponse = await fetch(`${API_URL}/clients/list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       if (clientsResponse.ok) {
         const clientsData = await clientsResponse.json();
         setAllClients(clientsData);
@@ -264,9 +272,12 @@ export default function Messages() {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-8rem)] flex rounded-xl border bg-card shadow-card overflow-hidden">
+      <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row rounded-xl border bg-card shadow-premium overflow-hidden">
         {/* Chat List */}
-        <div className="w-80 border-r flex flex-col">
+        <div className={cn(
+          "w-full md:w-80 border-r flex flex-col transition-all",
+          selectedConversation ? "hidden md:flex" : "flex"
+        )}>
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-lg">Messages</h2>
@@ -325,6 +336,7 @@ export default function Messages() {
                     <div className="flex items-start gap-3">
                       <div className="relative">
                         <Avatar className="h-10 w-10">
+                          <AvatarImage src={getAvatarUrl(client.avatarUrl)} className="object-cover" />
                           <AvatarFallback className={cn(
                             hasUnread ? 'bg-primary/20 text-primary' : 'bg-muted'
                           )}>
@@ -380,33 +392,50 @@ export default function Messages() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col">
+        <div className={cn(
+          "flex-1 flex flex-col transition-all",
+          !selectedConversation ? "hidden md:flex" : "flex"
+        )}>
           {selectedConversation && selectedConversation.client ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b flex items-center justify-between">
+              <div className="p-4 border-b flex items-center justify-between bg-card/50 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center gap-3">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="md:hidden -ml-2 h-10 w-10"
+                    onClick={() => setSelectedConversation(null)}
+                  >
+                    <ChevronRight className="h-6 w-6 rotate-180" />
+                  </Button>
                   <div className="relative">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                    <Avatar className="h-10 w-10 border-2 border-primary/10">
+                      <AvatarImage src={getAvatarUrl(selectedConversation.client.avatarUrl)} className="object-cover" />
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
                         {selectedConversation.client.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     {isClientOnline && (
-                      <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 rounded-full border-2 border-white" />
+                      <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-card" />
                     )}
                   </div>
-                  <div>
-                    <p className="font-semibold">{selectedConversation.client.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {isClientOnline ? 'Online' : 'Offline'}
-                      {selectedConversation.client.company && ` • ${selectedConversation.client.company}`}
-                    </p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 truncate">{selectedConversation.client.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn("h-1.5 w-1.5 rounded-full", isClientOnline ? "bg-green-500" : "bg-slate-300")} />
+                      <p className="text-xs text-slate-500 font-medium">
+                        {isClientOnline ? 'Online' : 'Offline'}
+                        {selectedConversation.client.company && ` • ${selectedConversation.client.company}`}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-slate-400">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
 
               {/* Messages */}
@@ -521,11 +550,12 @@ export default function Messages() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <p className="text-lg mb-2">Select a conversation to start messaging</p>
-                <p className="text-sm">Choose a client from the list to view messages</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
+              <div className="h-24 w-24 rounded-full bg-primary/5 flex items-center justify-center mb-6">
+                <MoreVertical className="h-10 w-10 text-primary/20 rotate-90" />
               </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Select a conversation</h3>
+              <p className="text-slate-500 max-w-[240px]">Choose a client from the sidebar to start a secure discussion.</p>
             </div>
           )}
         </div>

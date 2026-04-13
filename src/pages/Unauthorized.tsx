@@ -38,7 +38,7 @@ const Unauthorized: React.FC = () => {
           {user && (
             <div className="bg-gray-50 rounded-md p-3 mb-6">
               <p className="text-sm text-gray-700">
-                <strong>Current Role:</strong> {user.role}
+                <strong>Current Role:</strong> {typeof user.role === 'object' ? (user.role as any).role_name : user.role}
               </p>
               <p className="text-sm text-gray-700">
                 <strong>User:</strong> {user.name}

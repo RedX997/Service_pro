@@ -99,3 +99,12 @@ test-*.js
 # Backfill scripts (optional - can be included if needed)
 server/backfill-*.js
 server/check-*.js
+server/check-*.ts
+server/create-*.ts
+server/restore-*.ts
+server/sync-*.ts
+server/update-*.ts
+server/uploads/
+server/scratch/
+src/pages/DiagnosticTest.tsx
+src/test.js

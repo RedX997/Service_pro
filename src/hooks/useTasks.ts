@@ -65,37 +65,28 @@ export interface UpdateTaskData {
   completedAt?: string;
 }
 
-// Get all tasks
+// Get all tasks - Using POST (PUSH) as requested
 export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
-    queryFn: async (): Promise<Task[]> => {
-      const response = await apiClient.get('/tasks');
-      return response.data;
-    },
+    queryFn: () => apiClient.post<Task[]>('/tasks/list'),
   });
 }
 
-// Get tasks for a specific employee
+// Get tasks for a specific employee - Using POST (PUSH)
 export function useEmployeeTasks(employeeId: string) {
   return useQuery({
     queryKey: ['tasks', 'employee', employeeId],
-    queryFn: async (): Promise<Task[]> => {
-      const response = await apiClient.get(`/tasks/employee/${employeeId}`);
-      return response.data;
-    },
+    queryFn: () => apiClient.post<Task[]>(`/tasks/employee/${employeeId}`),
     enabled: !!employeeId,
   });
 }
 
-// Get task statistics for an employee
+// Get task statistics for an employee - Using POST (PUSH)
 export function useTaskStats(employeeId: string) {
   return useQuery({
     queryKey: ['tasks', 'stats', employeeId],
-    queryFn: async (): Promise<TaskStats> => {
-      const response = await apiClient.get(`/tasks/stats/${employeeId}`);
-      return response.data;
-    },
+    queryFn: () => apiClient.post<TaskStats>(`/tasks/stats/${employeeId}`),
     enabled: !!employeeId,
   });
 }
@@ -105,10 +96,7 @@ export function useCreateTask() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (data: CreateTaskData): Promise<Task> => {
-      const response = await apiClient.post('/tasks', data);
-      return response.data;
-    },
+    mutationFn: (data: CreateTaskData) => apiClient.post<Task>('/tasks', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -120,10 +108,8 @@ export function useUpdateTask() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: UpdateTaskData }): Promise<Task> => {
-      const response = await apiClient.patch(`/tasks/${id}`, updates);
-      return response.data;
-    },
+    mutationFn: ({ id, updates }: { id: string; updates: UpdateTaskData }) => 
+      apiClient.patch<Task>(`/tasks/${id}`, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -135,9 +121,7 @@ export function useDeleteTask() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (id: string): Promise<void> => {
-      await apiClient.delete(`/tasks/${id}`);
-    },
+    mutationFn: (id: string) => apiClient.delete<void>(`/tasks/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },

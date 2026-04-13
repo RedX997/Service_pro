@@ -3,8 +3,8 @@ import { prisma } from '../lib/prisma.js';
 
 const router = express.Router();
 
-// Get all tasks
-router.get('/', async (req, res) => {
+// Get all tasks - Using POST (PUSH)
+router.post('/list', async (req, res) => {
     try {
         const tasks = await prisma.task.findMany({
             include: {
@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
                         email: true,
                         role: true,
                         department: true,
+                        avatarUrl: true,
                     },
                 },
                 assigner: {
@@ -42,8 +43,8 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get today's tasks
-router.get('/today', async (req, res) => {
+// Get today's tasks - Using POST (PUSH)
+router.post('/today', async (req, res) => {
     try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -77,6 +78,7 @@ router.get('/today', async (req, res) => {
                         email: true,
                         role: true,
                         department: true,
+                        avatarUrl: true,
                     },
                 },
                 client: {
@@ -96,8 +98,8 @@ router.get('/today', async (req, res) => {
     }
 });
 
-// Get tasks for a specific employee
-router.get('/employee/:employeeId', async (req, res) => {
+// Get tasks for a specific employee - Using POST (PUSH)
+router.post('/employee/:employeeId', async (req, res) => {
     try {
         const { employeeId } = req.params;
         const tasks = await prisma.task.findMany({
@@ -110,6 +112,7 @@ router.get('/employee/:employeeId', async (req, res) => {
                         email: true,
                         role: true,
                         department: true,
+                        avatarUrl: true,
                     },
                 },
                 assigner: {
@@ -165,6 +168,7 @@ router.post('/', async (req, res) => {
                         email: true,
                         role: true,
                         department: true,
+                        avatarUrl: true,
                     },
                 },
                 assigner: {
@@ -209,6 +213,7 @@ router.patch('/:id', async (req, res) => {
                         email: true,
                         role: true,
                         department: true,
+                        avatarUrl: true,
                     },
                 },
                 assigner: {
@@ -250,8 +255,8 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Get task statistics for an employee
-router.get('/stats/:employeeId', async (req, res) => {
+// Get task statistics - Using POST (PUSH)
+router.post('/stats/:employeeId', async (req, res) => {
     try {
         const { employeeId } = req.params;
         

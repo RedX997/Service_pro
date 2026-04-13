@@ -327,7 +327,10 @@ export function useMessaging(userId: string, userType: 'employee' | 'client') {
       const params = new URLSearchParams({ limit: limit.toString() });
       if (before) params.append('before', before);
 
-      const response = await fetch(`${API_URL}/messages/conversation/${conversationId}?${params}`);
+      const response = await fetch(`${API_URL}/messages/conversation/${conversationId}/list?${params}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
       if (!response.ok) {
         throw new Error('Failed to load messages');
       }

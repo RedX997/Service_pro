@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'manager' | 'receptionist';
+export type UserRole = 'super_admin' | 'manager' | 'receptionist' | 'employee';
 
 export interface User {
   id: string;
@@ -6,6 +6,9 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  avatar_url?: string;
+  phone?: string;
+  address?: string;
   department?: string;
 }
 
@@ -34,6 +37,7 @@ export interface Client {
   company?: string;
   address?: string;
   status: string;
+  avatarUrl?: string;
   createdAt: Date;
   // Optional frontend fields
   services?: string[];
@@ -106,6 +110,7 @@ export interface Employee {
   department: string;
   role: string;
   status: 'active' | 'inactive';
+  avatarUrl?: string;
   clientLoad?: number;
   maxLoad?: number;
   billableHours?: number;

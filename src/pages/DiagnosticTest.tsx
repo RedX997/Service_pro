@@ -22,7 +22,11 @@ export default function DiagnosticTest() {
       const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
       
       try {
-        const response = await fetch(`${API_URL}/notifications?userId=${user?.id || 1}`);
+        const response = await fetch(`${API_URL}/notifications/list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user?.id || 1 })
+        });
         const data = await response.json();
         setApiTest({
           success: true,

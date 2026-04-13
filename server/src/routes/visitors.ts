@@ -6,8 +6,8 @@ import { logClientActivity, ClientActivityAction } from '../helpers/logClientAct
 
 const router = express.Router();
 
-// Get all visitors
-router.get('/', async (req, res) => {
+// Get all visitors - POST (PUSH)
+router.post('/list', async (req, res) => {
     try {
         const visitors = await prisma.visitor.findMany({
             orderBy: { createdAt: 'desc' },

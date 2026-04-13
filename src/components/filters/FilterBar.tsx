@@ -32,7 +32,7 @@ export function FilterBar({ children, activeFilterCount, onClearAll, className }
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[600px] p-4" align="start">
+      <PopoverContent className="w-[calc(100vw-32px)] sm:w-[600px] p-4 glassmorphism border-slate-200/50 dark:border-slate-800/50 shadow-premium" align="end">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-medium text-sm">Filter Options</h4>

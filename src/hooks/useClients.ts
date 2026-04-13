@@ -43,3 +43,10 @@ export const useDeleteClient = () => {
     },
   });
 };
+
+export const useGlobalActivity = (limit: number = 10) => {
+  return useQuery({
+    queryKey: ['global-activity', limit],
+    queryFn: () => clientService.getAllActivity(limit),
+  });
+};

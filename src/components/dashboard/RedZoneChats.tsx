@@ -11,20 +11,16 @@ export function RedZoneChats() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: clients = [] } = useClients();
-  
-  // Get messages from localStorage
-  const messages = useMemo(() => {
-    const stored = localStorage.getItem('servicepro_messages');
-    return stored ? JSON.parse(stored) : [];
-  }, []);
+  const { data: messages = [], isLoading } = useMessages();
 
   // Get unread messages older than 1 hour (red zone)
   const redZoneChats = useMemo(() => {
     const oneHourAgo = new Date();
     oneHourAgo.setHours(oneHourAgo.getHours() - 1);
     
+    // Filter employee-bound messages that are unread and sender is client
     return messages
-      .filter(m => !m.isRead && new Date(m.timestamp) < oneHourAgo)
+      .filter(m => !m.isRead && m.senderType === 'client' && new Date(m.timestamp) < oneHourAgo)
       .slice(0, 3)
       .map(m => {
         const client = clients.find(c => c.id === m.clientId);

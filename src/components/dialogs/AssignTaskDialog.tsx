@@ -55,7 +55,7 @@ export function AssignTaskDialog({ employee, open, onOpenChange }: AssignTaskDia
     title: '',
     description: '',
     priority: 'medium',
-    clientId: '',
+    clientId: 'none',
     dueDate: undefined,
   });
 
@@ -64,7 +64,7 @@ export function AssignTaskDialog({ employee, open, onOpenChange }: AssignTaskDia
       title: '',
       description: '',
       priority: 'medium',
-      clientId: '',
+      clientId: 'none',
       dueDate: undefined,
     });
   };
@@ -88,7 +88,7 @@ export function AssignTaskDialog({ employee, open, onOpenChange }: AssignTaskDia
         description: taskForm.description.trim() || undefined,
         priority: taskForm.priority,
         assignedTo: employee.id,
-        clientId: taskForm.clientId || undefined,
+        clientId: taskForm.clientId === 'none' ? undefined : taskForm.clientId,
         dueDate: taskForm.dueDate?.toISOString(),
       });
 
@@ -205,7 +205,7 @@ export function AssignTaskDialog({ employee, open, onOpenChange }: AssignTaskDia
                 <SelectValue placeholder="Select a client (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No client</SelectItem>
+                <SelectItem value="none">No client</SelectItem>
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.company || client.name}

@@ -174,6 +174,7 @@ export default function Login() {
                   <p><strong>Super Admin:</strong> admin@servicepro.com / admin123</p>
                   <p><strong>Manager:</strong> manager@servicepro.com / manager123</p>
                   <p><strong>Receptionist:</strong> receptionist@servicepro.com / receptionist123</p>
+                  <p><strong>Employee:</strong> staff.member@servicepro.com / staff12345</p>
                 </div>
               </div>
             </CardContent>
