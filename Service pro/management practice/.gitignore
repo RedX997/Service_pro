@@ -1,0 +1,107 @@
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+server/node_modules/
+/.pnp
+.pnp.js
+
+# ─── Build Artifacts ─────────────────────────────────────────────────────────
+dist/
+build/
+server/dist/
+*.tsbuildinfo
+.cache/
+
+# ─── Environment Variables (NEVER commit secrets) ────────────────────────────
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+server/.env
+server/.env.local
+server/.env.production
+
+# ─── Internal / Archived Dev Files ───────────────────────────────────────────
+archived_dev_files/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ─── OS Files ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ─── Database ────────────────────────────────────────────────────────────────
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+server/dev.db
+server/prisma/dev.db
+
+# ─── Prisma ──────────────────────────────────────────────────────────────────
+.prisma/
+
+# ─── Temporary / Diagnostic Files ────────────────────────────────────────────
+*.tmp
+*.temp
+.temp/
+.tmp/
+server/backfill-*.js
+server/check-*.js
+server/check-*.ts
+server/create-*.ts
+server/restore-*.ts
+server/sync-*.ts
+server/update-*.ts
+server/uploads/
+server/scratch/
+src/pages/DiagnosticTest.tsx
+src/test.js
+
+# ─── Test HTML Files (local only) ────────────────────────────────────────────
+test-*.html
+test-*.js
+*-test.html
+
+# ─── Markdown Docs (internal/clutter — keep only README.md) ─────────────────
+*.md
+!README.md
+
+# ─── Zip / Archive Files ─────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+servicepro-build.zip
+
+# ─── Deployment Platform Files ───────────────────────────────────────────────
+.vercel
+.netlify
+.output
+.nuxt
+.next
+out/
+
+# ─── Lock Files ──────────────────────────────────────────────────────────────
+bun.lockb
+
+# ─── Batch / Shell Scripts ───────────────────────────────────────────────────
+*.bat
+*.sh
