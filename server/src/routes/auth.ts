@@ -191,8 +191,15 @@ router.post('/profile', (req, res, next) => {
     res.json(userWithoutPassword);
     } catch (error: any) {
     console.error('CRITICAL: Error updating profile:', error);
-    if (error.code) console.error('Prisma Error Code:', error.code);
-    if (error.meta) console.error('Prisma Error Meta:', error.meta);
+    
+    // Handle unique constraint violation (P2002)
+    if (error.code === 'P2002') {
+      return res.status(409).json({ 
+        error: 'Email already in use', 
+        details: 'The email address you entered is already registered to another user account.' 
+      });
+    }
+
     res.status(500).json({ 
       error: 'Failed to update profile', 
       details: error.message,

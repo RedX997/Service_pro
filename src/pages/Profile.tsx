@@ -76,7 +76,8 @@ export default function Profile() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to update profile');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update profile');
       }
 
       const updatedUser = await response.json();
@@ -96,11 +97,24 @@ export default function Profile() {
           description: "Your profile information and photo have been successfully updated.",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update profile error:', error);
+      
+      let errorMsg = "Failed to update profile. Please try again.";
+      
+      // Try to extract server-side error message if available
+      try {
+        const errorData = JSON.parse(error.message);
+        if (errorData.error) errorMsg = errorData.error;
+      } catch (e) {
+        if (error.message && !error.message.includes('Failed to update profile')) {
+          errorMsg = error.message;
+        }
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
+        title: "Update Failed",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
