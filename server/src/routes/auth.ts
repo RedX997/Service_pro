@@ -154,8 +154,8 @@ router.post('/profile', (req, res, next) => {
     if (highContrast !== undefined) updateData.highContrast = String(highContrast) === 'true';
     if (fontSize !== undefined) updateData.fontSize = fontSize;
 
-    if (req.file) {
-      updateData.avatar_url = `/uploads/avatars/${req.file.filename}`;
+    if ((req as any).file) {
+      updateData.avatar_url = `/uploads/avatars/${(req as any).file.filename}`;
     }
 
     const updatedUser = await prisma.user.update({
@@ -183,8 +183,8 @@ router.post('/profile', (req, res, next) => {
     
     // Add debug info to response
     (userWithoutPassword as any)._debug = {
-      fileReceived: !!req.file,
-      filename: req.file?.filename,
+      fileReceived: !!(req as any).file,
+      filename: (req as any).file?.filename,
       bodyFields: Object.keys(req.body)
     };
     
@@ -232,12 +232,13 @@ router.patch('/profile', upload.single('avatar'), async (req, res) => {
       fontSize
     };
 
-    if (req.file) {
-      updateData.avatar_url = `/uploads/avatars/${req.file.filename}`;
+    if ((req as any).file) {
+      updateData.avatar_url = `/uploads/avatars/${(req as any).file.filename}`;
     }
 
+    const userIdNum = parseInt(id as string);
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { id: isNaN(userIdNum) ? 0 : userIdNum },
       data: updateData,
       include: { role: true }
     });
