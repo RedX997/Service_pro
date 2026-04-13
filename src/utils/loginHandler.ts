@@ -94,12 +94,10 @@ export const performLogin = async (
       }
     }
 
-    // Convert database user to our User type
+    // Convert database user to our User type, preserving all profile fields
     const user: User = {
-      id: userData.id,
-      name: userData.name,
-      role: userData.role.role_name, // Database returns role object with role_name
-      sessionId: userData.sessionId,
+      ...userData,
+      role: userData.role.role_name, // Map nested role object to role name
     }
 
     return { success: true, user }
