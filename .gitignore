@@ -1,40 +1,45 @@
-# Dependencies
+# ─── Dependencies ────────────────────────────────────────────────────────────
 node_modules/
 server/node_modules/
 /.pnp
 .pnp.js
 
-# Testing
-/coverage
-
-# Production builds
+# ─── Build Artifacts ─────────────────────────────────────────────────────────
 dist/
 build/
 server/dist/
+*.tsbuildinfo
+.cache/
 
-# Environment variables
+# ─── Environment Variables (NEVER commit secrets) ────────────────────────────
 .env
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
-.env.production.local
 .env.production
+.env.production.local
 server/.env
 server/.env.local
+server/.env.production
 
-# Logs
+# ─── Internal / Archived Dev Files ───────────────────────────────────────────
+archived_dev_files/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-*.log
 
-# OS files
+# ─── OS Files ────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# IDE
+# ─── IDE ─────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
@@ -44,7 +49,7 @@ desktop.ini
 .classpath
 .settings/
 
-# Database
+# ─── Database ────────────────────────────────────────────────────────────────
 *.db
 *.db-journal
 *.sqlite
@@ -52,54 +57,14 @@ desktop.ini
 server/dev.db
 server/prisma/dev.db
 
-# Prisma
+# ─── Prisma ──────────────────────────────────────────────────────────────────
 .prisma/
 
-# Build files
-*.tsbuildinfo
-.cache/
-
-# Temporary files
+# ─── Temporary / Diagnostic Files ────────────────────────────────────────────
 *.tmp
 *.temp
 .temp/
 .tmp/
-
-# Lock files (optional - keep one)
-# Uncomment if you want to exclude lock files
-# package-lock.json
-# yarn.lock
-# pnp.lock
-bun.lockb
-
-# Zip files
-*.zip
-servicepro-build.zip
-
-# Misc
-.vercel
-.netlify
-.output
-.nuxt
-.next
-out/
-
-# Batch files and scripts
-*.bat
-
-# Test files
-test-*.html
-test-*.js
-*-test.html
-
-# Documentation with sensitive info (exclude from GitHub)
-*.md
-!README.md
-# But keep README.md minimal and safe
-
-# Backfill scripts (optional - can be included if needed)
-# Archive directory for development scripts and reports
-archived_dev_files/
 server/backfill-*.js
 server/check-*.js
 server/check-*.ts
@@ -111,3 +76,32 @@ server/uploads/
 server/scratch/
 src/pages/DiagnosticTest.tsx
 src/test.js
+
+# ─── Test HTML Files (local only) ────────────────────────────────────────────
+test-*.html
+test-*.js
+*-test.html
+
+# ─── Markdown Docs (internal/clutter — keep only README.md) ─────────────────
+*.md
+!README.md
+
+# ─── Zip / Archive Files ─────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+servicepro-build.zip
+
+# ─── Deployment Platform Files ───────────────────────────────────────────────
+.vercel
+.netlify
+.output
+.nuxt
+.next
+out/
+
+# ─── Lock Files ──────────────────────────────────────────────────────────────
+bun.lockb
+
+# ─── Batch / Shell Scripts ───────────────────────────────────────────────────
+*.bat
+*.sh
