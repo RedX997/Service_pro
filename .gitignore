@@ -97,6 +97,8 @@ test-*.js
 # But keep README.md minimal and safe
 
 # Backfill scripts (optional - can be included if needed)
+# Archive directory for development scripts and reports
+archived_dev_files/
 server/backfill-*.js
 server/check-*.js
 server/check-*.ts
