@@ -10,6 +10,8 @@ import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useVisitors } from '@/hooks/useVisitors';
 import { useMessages } from '@/hooks/useMessages';
+import { useTaskStats } from '@/hooks/useTasks';
+import { useDepartments } from '@/hooks/useDepartments';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Send, Calendar, Users as UsersIcon } from 'lucide-react';
@@ -52,6 +54,7 @@ const QuickActionsPanel = ({ isVisible }: { isVisible: boolean }) => {
 function SuperAdminDashboard() {
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
+  const { data: departments = [] } = useDepartments();
 
   // Calculate active employees
   const activeEmployees = useMemo(() => {
@@ -93,12 +96,12 @@ function SuperAdminDashboard() {
         />
         <StatCard
           title="Departments"
-          value="8"
+          value={departments.length.toString()}
           icon={<Building2 className="h-5 w-5" />}
         />
         <StatCard
           title="Services"
-          value="32"
+          value="5" // Updated to reflect real mock data count
           icon={<FileText className="h-5 w-5" />}
         />
       </div>
@@ -124,11 +127,16 @@ function ManagerDashboard() {
   const { data: employees = [] } = useEmployees();
   const { data: messages = [] } = useMessages();
   
-  // Calculate my clients (all clients for manager view)
+  // Find current employee record for ID filtering
+  const currentEmployee = useMemo(() => {
+    return employees.find(e => e.email === user?.email);
+  }, [employees, user]);
+
+  // Calculate my clients (personalized for manager)
   const myClients = useMemo(() => {
-    // Show all clients for managers (they oversee all)
-    return clients.length;
-  }, [clients]);
+    if (!currentEmployee) return 0;
+    return clients.filter(c => c.assignedEmployee === currentEmployee.id).length;
+  }, [clients, currentEmployee]);
 
   // Calculate team members (all active employees for manager view)
   const teamMembers = useMemo(() => {
@@ -302,6 +310,16 @@ function EmployeeDashboard() {
     return employees.find(e => e.email === user?.email);
   }, [employees, user]);
 
+  const { data: stats } = useTaskStats(currentEmployee?.id || '');
+  
+  const assignedCount = useMemo(() => {
+    return stats?.statusBreakdown.reduce((sum, s) => sum + s._count.status, 0) || 0;
+  }, [stats]);
+
+  const completedCount = useMemo(() => {
+    return stats?.statusBreakdown.find(s => s.status === 'completed')?._count.status || 0;
+  }, [stats]);
+
   const isCompact = user?.compactView ?? false;
   const showWelcome = user?.showWelcome ?? true;
   const showQuickActions = user?.showQuickActions ?? true;
@@ -323,12 +341,12 @@ function EmployeeDashboard() {
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${gapClass}`}>
         <StatCard
           title="Assigned Tasks"
-          value="12" // TODO: Fetch real personal stats
+          value={assignedCount.toString()}
           icon={<CheckSquare className="h-5 w-5" />}
         />
         <StatCard
           title="Completed"
-          value="48"
+          value={completedCount.toString()}
           icon={<UserCheck className="h-5 w-5" />}
           variant="accent"
         />
@@ -338,9 +356,10 @@ function EmployeeDashboard() {
           icon={<Clock className="h-5 w-5" />}
         />
         <StatCard
-          title="Active Clients"
-          value="5"
-          icon={<Users className="h-5 w-5" />}
+          title="Overdue Tasks"
+          value={stats?.overdueTasks?.toString() || "0"}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          variant={stats?.overdueTasks && stats.overdueTasks > 0 ? "danger" : "default"}
         />
       </div>
 

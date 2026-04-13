@@ -83,7 +83,20 @@ export default function Clients() {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const { toast } = useToast();
 
-  // Filter states
+  // React Query hooks
+  const { user } = useAuth();
+  const { data: clients = [], isLoading, error } = useClients();
+  const { data: employees = [] } = useEmployees();
+  const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
+  const deleteClientMutation = useDeleteClient();
+
+  // Find current employee record
+  const currentEmployee = useMemo(() => {
+    return employees.find(e => e.email === user?.email);
+  }, [employees, user]);
+
+  // Filter states - default to self if employee/manager
   const [filters, setFilters] = useState({
     company: '',
     email: '',
@@ -93,12 +106,12 @@ export default function Clients() {
     status: 'all',
   });
 
-  // React Query hooks
-  const { data: clients = [], isLoading, error } = useClients();
-  const { data: employees = [] } = useEmployees();
-  const createClientMutation = useCreateClient();
-  const updateClientMutation = useUpdateClient();
-  const deleteClientMutation = useDeleteClient();
+  // Initialization effect for filters
+  useEffect(() => {
+    if (user && user.role !== 'super_admin' && currentEmployee) {
+      setFilters(prev => ({ ...prev, assignedEmployee: currentEmployee.id }));
+    }
+  }, [user, currentEmployee]);
 
   // Log for debugging
   console.log('Clients data:', clients);
