@@ -74,7 +74,6 @@ server/sync-*.ts
 server/update-*.ts
 server/uploads/
 server/scratch/
-src/pages/DiagnosticTest.tsx
 src/test.js
 
 # ─── Test HTML Files (local only) ────────────────────────────────────────────
@@ -82,9 +81,9 @@ test-*.html
 test-*.js
 *-test.html
 
-# ─── Markdown Docs (internal/clutter — keep only README.md) ─────────────────
-*.md
-!README.md
+# ─── Markdown Docs ──────────────────────────────────────────────────────────
+# Allow all documentation
+
 
 # ─── Zip / Archive Files ─────────────────────────────────────────────────────
 *.zip

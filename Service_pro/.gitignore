@@ -91,10 +91,8 @@ test-*.html
 test-*.js
 *-test.html
 
-# Documentation with sensitive info (exclude from GitHub)
-*.md
-!README.md
-# But keep README.md minimal and safe
+# Documentation
+# Allow all documentation files
 
 # Backfill scripts (optional - can be included if needed)
 # Archive directory for development scripts and reports
@@ -108,5 +106,4 @@ server/sync-*.ts
 server/update-*.ts
 server/uploads/
 server/scratch/
-src/pages/DiagnosticTest.tsx
 src/test.js
