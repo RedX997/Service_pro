@@ -37,7 +37,7 @@ interface AuthContextType {
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Local storage key
+// Session storage key
 const AUTH_STORAGE_KEY = 'servicepro_auth_user'
 
 // Auth provider component
@@ -49,11 +49,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load user from localStorage on app start
+  // Load user from sessionStorage on app start
   useEffect(() => {
     const loadUserFromStorage = () => {
       try {
-        const storedUser = localStorage.getItem(AUTH_STORAGE_KEY)
+        const storedUser = sessionStorage.getItem(AUTH_STORAGE_KEY)
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser) as User
           // Validate user structure
@@ -96,9 +96,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
       
       setUser(userWithOriginalRole)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithOriginalRole))
+      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithOriginalRole))
     } catch (error) {
-      console.error('Error saving user to localStorage:', error)
+      console.error('Error saving user to sessionStorage:', error)
       throw error
     }
   }
@@ -121,7 +121,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch {}
     }
     setUser(null)
-    localStorage.removeItem(AUTH_STORAGE_KEY)
+    sessionStorage.removeItem(AUTH_STORAGE_KEY)
+    localStorage.removeItem(AUTH_STORAGE_KEY) // Also clear legacy storage
   }
 
   // Switch role function - allows super admin and manager to view different dashboards
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         originalRole: loginRole // Keep original role
       }
       setUser(updatedUser)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
+      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
       return
     }
     
@@ -155,7 +156,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         originalRole: loginRole // Keep original role
       }
       setUser(updatedUser)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
+      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
       return
     }
     
@@ -175,7 +176,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     const updatedUser = { ...user, ...normalizedData }
     setUser(updatedUser)
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
   }
 
   // Helper functions
