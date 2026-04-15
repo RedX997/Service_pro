@@ -21,22 +21,39 @@ async function resolveDepartments(deptNames: string[]) {
 // ─── GET all employees ────────────────────────────────────────────────────────
 router.post('/list', async (req, res) => {
   try {
+    // Try with junction table first (post-migration)
+    try {
+      const employees = await prisma.employee.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          departmentMemberships: {
+            include: { department: { select: { id: true, name: true } } },
+          },
+        },
+      });
+
+      const shaped = employees.map((e) => ({
+        ...e,
+        departments: e.departmentMemberships.map((m) => m.department.name),
+        departmentMemberships: undefined,
+      }));
+
+      return res.json(shaped);
+    } catch (junctionErr) {
+      console.warn('⚠️  Junction table not ready, using simple list:', (junctionErr as Error).message.split('\n')[0]);
+    }
+
+    // Fallback: simple list without junction (pre-migration)
     const employees = await prisma.employee.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
-        departmentMemberships: {
-          include: { department: { select: { id: true, name: true } } },
-        },
-      },
     });
-
-    // Shape: attach departments[] array for frontend convenience
-    const shaped = employees.map((e) => ({
+    // Ensure departments field is always an array
+    const shaped = employees.map((e: any) => ({
       ...e,
-      departments: e.departmentMemberships.map((m) => m.department.name),
-      departmentMemberships: undefined, // strip raw relation
+      departments: (e.departments && Array.isArray(e.departments) && e.departments.length > 0)
+        ? e.departments
+        : e.department ? [e.department] : [],
     }));
-
     res.json(shaped);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

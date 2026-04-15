@@ -6,34 +6,49 @@ const router = express.Router();
 // Get all departments - POST (PUSH)
 router.post('/list', async (req, res) => {
     try {
-        const departments = await prisma.department.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                memberOf: {
-                    include: {
-                        employee: { select: { status: true } }
+        // First try using the junction table (post-migration)
+        try {
+            const departments = await prisma.department.findMany({
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    memberOf: {
+                        include: {
+                            employee: { select: { status: true } }
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        const departmentsWithCounts = departments.map((dept) => {
-            // Count active employees via junction table
-            const activeCount = dept.memberOf.filter(
-                (m) => m.employee.status === 'active'
-            ).length;
-
-            return {
+            const result = departments.map((dept) => ({
                 id: dept.id,
                 name: dept.name,
                 description: dept.description,
-                employees: activeCount,
+                employees: dept.memberOf.filter((m) => m.employee.status === 'active').length,
                 services: dept.services,
                 activeClients: dept.activeClients,
                 createdAt: dept.createdAt,
                 updatedAt: dept.updatedAt,
-            };
+            }));
+
+            return res.json(result);
+        } catch (junctionErr) {
+            // Junction table doesn't exist yet — fall back to name-match count
+            console.warn('⚠️  Junction table not ready, using fallback count:', (junctionErr as Error).message.split('\n')[0]);
+        }
+
+        // Fallback: original approach using department string field
+        const departments = await prisma.department.findMany({
+            orderBy: { createdAt: 'desc' },
         });
+
+        const departmentsWithCounts = await Promise.all(
+            departments.map(async (dept) => {
+                const employeeCount = await prisma.employee.count({
+                    where: { department: dept.name, status: 'active' }
+                });
+                return { ...dept, employees: employeeCount };
+            })
+        );
 
         res.json(departmentsWithCounts);
     } catch (error: any) {
