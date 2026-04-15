@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Search, Mail, Phone, MoreVertical, Users, Clock, Briefcase, Loader2, Edit, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,7 +71,8 @@ interface EmployeeForm {
   email: string;
   mobile: string;
   phone: string;
-  department: string;
+  department: string;      // Primary (legacy field)
+  departments: string[];   // All selected departments
   role: string;
   status: 'active' | 'inactive';
 }
@@ -131,9 +133,25 @@ export default function Employees() {
     mobile: '',
     phone: '',
     department: '',
+    departments: [],
     role: '',
     status: 'active',
   });
+
+  // Toggle a department in/out of the multi-select list
+  const toggleEmpDept = (deptName: string) => {
+    setEmployeeForm((prev) => {
+      const already = prev.departments.includes(deptName);
+      const updated = already
+        ? prev.departments.filter((d) => d !== deptName)
+        : [...prev.departments, deptName];
+      return {
+        ...prev,
+        departments: updated,
+        department: updated[0] ?? '', // keep primary in sync
+      };
+    });
+  };
 
   const filteredEmployees = useMemo(() => {
     return employeesWithStats.filter(employee => {
@@ -203,6 +221,7 @@ export default function Employees() {
       mobile: '',
       phone: '',
       department: '',
+      departments: [],
       role: '',
       status: 'active',
     });
@@ -234,7 +253,8 @@ export default function Employees() {
         email: employeeForm.email.trim() || null,
         phone: employeeForm.phone.trim() || null,
         mobile: employeeForm.mobile.trim() || null,
-        department: employeeForm.department || null,
+        department: employeeForm.departments[0] || employeeForm.department || null,
+        departments: employeeForm.departments,
         role: employeeForm.role,
         status: employeeForm.status,
       } as any);
@@ -273,6 +293,7 @@ export default function Employees() {
       mobile: employee.mobile || '',
       phone: employee.phone || '',
       department: employee.department || '',
+      departments: employee.departments ?? (employee.department ? [employee.department] : []),
       role: employee.role,
       status: employee.status,
     });
@@ -309,7 +330,8 @@ export default function Employees() {
           email: employeeForm.email.trim() || null,
           phone: employeeForm.phone.trim() || null,
           mobile: employeeForm.mobile.trim() || null,
-          department: employeeForm.department || null,
+          department: employeeForm.departments[0] || employeeForm.department || null,
+          departments: employeeForm.departments,
           role: employeeForm.role,
           status: employeeForm.status,
         },
@@ -463,12 +485,21 @@ export default function Employees() {
                     <div>
                       <h3 className="font-semibold">{employee.name}</h3>
                       <p className="text-sm text-muted-foreground">{employee.role}</p>
-                      <Badge 
-                        variant={employee.status === 'active' ? 'secondary' : 'outline'} 
-                        className="mt-1 text-xs"
-                      >
-                        {employee.department}
-                      </Badge>
+                        {/* Show all assigned departments as badges */}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(employee.departments && employee.departments.length > 0
+                            ? employee.departments
+                            : employee.department ? [employee.department] : []
+                          ).map((dept, i) => (
+                            <Badge
+                              key={dept}
+                              variant={i === 0 ? 'secondary' : 'outline'}
+                              className="text-xs"
+                            >
+                              {dept}
+                            </Badge>
+                          ))}
+                        </div>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -603,22 +634,32 @@ export default function Employees() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="department">Department</Label>
-              <Select
-                value={employeeForm.department}
-                onValueChange={(value) => setEmployeeForm({ ...employeeForm, department: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
+              <Label htmlFor="department">Departments</Label>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2 bg-muted/20">
+                {departments.map((dept) => (
+                  <label
+                    key={dept}
+                    className="flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <Checkbox
+                      id={`add-dept-${dept}`}
+                      checked={employeeForm.departments.includes(dept)}
+                      onCheckedChange={() => toggleEmpDept(dept)}
+                    />
+                    <span className="text-sm group-hover:text-primary transition-colors">{dept}</span>
+                  </label>
+                ))}
+              </div>
+              {employeeForm.departments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {employeeForm.departments.map((d) => (
+                    <Badge key={d} variant="secondary" className="text-xs pr-1">
+                      {d}
+                      <button type="button" onClick={() => toggleEmpDept(d)} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
@@ -721,22 +762,32 @@ export default function Employees() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-department">Department</Label>
-              <Select
-                value={employeeForm.department}
-                onValueChange={(value) => setEmployeeForm({ ...employeeForm, department: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
+              <Label htmlFor="edit-department">Departments</Label>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2 bg-muted/20">
+                {departments.map((dept) => (
+                  <label
+                    key={dept}
+                    className="flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <Checkbox
+                      id={`edit-dept-${dept}`}
+                      checked={employeeForm.departments.includes(dept)}
+                      onCheckedChange={() => toggleEmpDept(dept)}
+                    />
+                    <span className="text-sm group-hover:text-primary transition-colors">{dept}</span>
+                  </label>
+                ))}
+              </div>
+              {employeeForm.departments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {employeeForm.departments.map((d) => (
+                    <Badge key={d} variant="secondary" className="text-xs pr-1">
+                      {d}
+                      <button type="button" onClick={() => toggleEmpDept(d)} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-role">Role</Label>

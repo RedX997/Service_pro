@@ -13,11 +13,13 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Loader2, Plus, RefreshCw, ShieldCheck, UserX, UserCheck, LogOut, Eye, EyeOff, Clock, Copy, CheckCheck, MessageCircle, Send } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useSupportTickets, useUpdateSupportTicket, useReplyToSupportTicket, SupportTicket } from '@/hooks/useSupport';
+import { useDepartments } from '@/hooks/useDepartments';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
@@ -75,7 +77,7 @@ export default function CascadeAdminDashboard() {
   const [sessionUserName, setSessionUserName] = useState('');
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [form, setForm] = useState({ fullName: '', personalEmail: '', role: '' });
+  const [form, setForm] = useState({ fullName: '', personalEmail: '', role: '', departments: [] as string[] });
   const [credModal, setCredModal] = useState<{ name: string; systemEmail: string; password: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -86,6 +88,9 @@ export default function CascadeAdminDashboard() {
     'Content-Type': 'application/json',
     'x-user-id': String(user?.id ?? ''),
   };
+
+  // Fetch available departments for the multi-select picker
+  const { departments: availableDepts } = useDepartments();
 
   const fetchUsers = async () => {
     try {
@@ -145,6 +150,15 @@ export default function CascadeAdminDashboard() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const toggleDept = (name: string) => {
+    setForm((prev) => ({
+      ...prev,
+      departments: prev.departments.includes(name)
+        ? prev.departments.filter((d) => d !== name)
+        : [...prev.departments, name],
+    }));
+  };
+
   const handleCreate = async () => {
     if (!form.fullName || !form.personalEmail || !form.role) {
       toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
@@ -155,7 +169,7 @@ export default function CascadeAdminDashboard() {
       const res = await fetch(`${API_URL}/cascade-admin/users`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, departments: form.departments }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -177,7 +191,7 @@ export default function CascadeAdminDashboard() {
 
       // Show credentials on screen immediately
       setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
-      setForm({ fullName: '', personalEmail: '', role: '' });
+      setForm({ fullName: '', personalEmail: '', role: '', departments: [] });
       setIsDialogOpen(false);
       fetchUsers();
       fetchCredentials();
@@ -611,7 +625,7 @@ export default function CascadeAdminDashboard() {
 
       {/* Create User Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New User</DialogTitle>
             <DialogDescription>
@@ -647,6 +661,55 @@ export default function CascadeAdminDashboard() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* ── Multi-select Departments ── */}
+            <div className="grid gap-2">
+              <Label>
+                Departments
+                <span className="ml-1 text-xs text-muted-foreground font-normal">
+                  (optional — select one or more)
+                </span>
+              </Label>
+              <div className="border rounded-md p-3 max-h-44 overflow-y-auto space-y-2 bg-muted/20">
+                {availableDepts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No departments found</p>
+                ) : (
+                  availableDepts.map((dept) => (
+                    <label
+                      key={dept.id}
+                      className="flex items-center gap-2.5 cursor-pointer group"
+                    >
+                      <Checkbox
+                        checked={form.departments.includes(dept.name)}
+                        onCheckedChange={() => toggleDept(dept.name)}
+                        id={`ca-dept-${dept.id}`}
+                      />
+                      <span className="text-sm group-hover:text-primary transition-colors">
+                        {dept.name}
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {dept.employees} active
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+              {form.departments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {form.departments.map((d) => (
+                    <Badge key={d} className="bg-primary/10 text-primary border-0 text-xs">
+                      {d}
+                      <button
+                        onClick={() => toggleDept(d)}
+                        className="ml-1.5 hover:text-destructive"
+                        type="button"
+                      >×</button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {previewEmail() && (
               <div className="rounded-md bg-muted px-3 py-2">
                 <p className="text-xs text-muted-foreground mb-1">System email preview</p>
@@ -665,6 +728,7 @@ export default function CascadeAdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Credentials Modal */}
       <Dialog open={!!credModal} onOpenChange={() => setCredModal(null)}>

@@ -30,19 +30,21 @@ model Client {
 }
 
 model Employee {
-  id          String   @id @default(uuid())
-  name        String
-  email       String?
-  phone       String?
-  mobile      String?
-  role        String
-  department  String?
-  status      String   @default("active")
-  avatarUrl   String?  @db.Text
-  createdAt   DateTime @default(now())
-  timeEntries TimeEntry[]
-  assignedTasks Task[] @relation("AssignedTasks")
-  createdTasks  Task[] @relation("CreatedTasks")
+  id           String   @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  mobile       String?
+  role         String
+  department   String?             // Primary department (backward compat)
+  departments  String[] @default([]) // All assigned departments
+  status       String   @default("active")
+  avatarUrl    String?  @db.Text
+  createdAt    DateTime @default(now())
+  timeEntries  TimeEntry[]
+  assignedTasks Task[]  @relation("AssignedTasks")
+  createdTasks  Task[]  @relation("CreatedTasks")
+  departmentMemberships EmployeeDepartment[]
 }
 
 model Visitor {
@@ -154,6 +156,23 @@ model Department {
   activeClients Int    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  memberOf    EmployeeDepartment[]
+}
+
+// Many-to-many junction: Employee ↔ Department
+model EmployeeDepartment {
+  id           String     @id @default(uuid())
+  employeeId   String
+  departmentId String
+  assignedAt   DateTime   @default(now())
+
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, departmentId])  // Prevents duplicate assignments
+  @@index([employeeId])
+  @@index([departmentId])
+  @@map("employee_departments")
 }
 
 model Task {

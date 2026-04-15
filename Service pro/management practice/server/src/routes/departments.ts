@@ -8,24 +8,32 @@ router.post('/list', async (req, res) => {
     try {
         const departments = await prisma.department.findMany({
             orderBy: { createdAt: 'desc' },
+            include: {
+                memberOf: {
+                    include: {
+                        employee: { select: { status: true } }
+                    }
+                }
+            }
         });
 
-        // Count actual employees for each department
-        const departmentsWithCounts = await Promise.all(
-            departments.map(async (dept) => {
-                const employeeCount = await prisma.employee.count({
-                    where: { 
-                        department: dept.name,
-                        status: 'active'
-                    }
-                });
+        const departmentsWithCounts = departments.map((dept) => {
+            // Count active employees via junction table
+            const activeCount = dept.memberOf.filter(
+                (m) => m.employee.status === 'active'
+            ).length;
 
-                return {
-                    ...dept,
-                    employees: employeeCount
-                };
-            })
-        );
+            return {
+                id: dept.id,
+                name: dept.name,
+                description: dept.description,
+                employees: activeCount,
+                services: dept.services,
+                activeClients: dept.activeClients,
+                createdAt: dept.createdAt,
+                updatedAt: dept.updatedAt,
+            };
+        });
 
         res.json(departmentsWithCounts);
     } catch (error: any) {

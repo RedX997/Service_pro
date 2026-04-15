@@ -120,10 +120,10 @@ router.post('/users/list', requireCascadeAdmin, async (req, res) => {
   }
 });
 
-// POST /api/cascade-admin/users — create user + send credentials
+// POST /api/cascade-admin/users — create user + employee + department mappings
 router.post('/users', requireCascadeAdmin, async (req, res) => {
   try {
-    const { fullName, personalEmail, role } = req.body;
+    const { fullName, personalEmail, role, departments: selectedDepts = [] } = req.body;
 
     if (!fullName || !personalEmail || !role) {
       return res.status(400).json({ error: 'fullName, personalEmail, and role are required' });
@@ -176,17 +176,47 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
     };
     const empDefaults = employeeRoleMap[role] ?? { role: 'Associate', department: 'Compliance' };
 
-    // ── Create Employee record (deduplication guard on email) ──────────────
+    // Merge: user-selected departments + role default (deduped, filtered)
+    const allDeptNames: string[] = Array.from(
+      new Set([
+        ...(selectedDepts as string[]),
+        empDefaults.department,
+      ])
+    ).filter(Boolean);
+    const primaryDept = allDeptNames[0] ?? empDefaults.department;
+
+    // ── Atomic transaction: create Employee + junction rows ────────────────
     let newEmployee = await prisma.employee.findFirst({ where: { email: systemEmail } });
     if (!newEmployee) {
-      newEmployee = await prisma.employee.create({
-        data: {
-          name: fullName,
-          email: systemEmail,
-          role: empDefaults.role,
-          department: empDefaults.department,
-          status: 'active',
-        },
+      newEmployee = await prisma.$transaction(async (tx) => {
+        const emp = await tx.employee.create({
+          data: {
+            name: fullName,
+            email: systemEmail,
+            role: empDefaults.role,
+            department: primaryDept,
+            departments: allDeptNames,
+            status: 'active',
+          },
+        });
+
+        // Resolve department names → IDs then write junction rows
+        if (allDeptNames.length > 0) {
+          const deptRecords = await tx.department.findMany({
+            where: { name: { in: allDeptNames } },
+            select: { id: true, name: true },
+          });
+          if (deptRecords.length > 0) {
+            await tx.employeeDepartment.createMany({
+              data: deptRecords.map((d) => ({
+                employeeId: emp.id,
+                departmentId: d.id,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+        return emp;
       });
     }
     console.log(`✅ Employee record created: ${newEmployee.id}`);
@@ -206,11 +236,11 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
           userId: u.id,
           type: 'system',
           title: 'New Employee Added',
-          message: `${fullName} has been onboarded as ${empDefaults.role} in ${empDefaults.department}.`,
+          message: `${fullName} joined as ${empDefaults.role} in ${allDeptNames.join(', ')}.`,
           data: {
             employeeId: newEmployee!.id,
             role: empDefaults.role,
-            department: empDefaults.department,
+            departments: allDeptNames,
           },
           priority: 'normal',
           actionUrl: '/employees',
@@ -220,18 +250,27 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       console.log(`📬 Notifications persisted for ${notifyRecipients.length} users`);
     }
 
-    // ── Emit EMPLOYEE_CREATED socket event to all connected dashboards ──────
+    // ── Emit socket events to all connected dashboards ─────────────────────
     try {
       const io = getIO();
-      const eventPayload = {
-        employee: newEmployee,
+      // Main event — picked up by useEmployeeSocket on every dashboard
+      io.emit('EMPLOYEE_CREATED', {
+        employee: { ...newEmployee, departments: allDeptNames },
+        departments: allDeptNames,
         createdAt: new Date().toISOString(),
-        message: `${fullName} joined as ${empDefaults.role} in ${empDefaults.department}`,
-      };
-      io.emit('EMPLOYEE_CREATED', eventPayload);
-      console.log('📡 EMPLOYEE_CREATED event broadcast to all clients');
+        message: `${fullName} joined as ${empDefaults.role} in ${allDeptNames.join(', ')}`,
+      });
+      // Per-department events — department dashboards listen for this
+      for (const deptName of allDeptNames) {
+        io.emit('EMPLOYEE_ASSIGNED_TO_DEPARTMENT', {
+          employeeId: newEmployee!.id,
+          employeeName: fullName,
+          department: deptName,
+          role: empDefaults.role,
+        });
+      }
+      console.log(`📡 EMPLOYEE_CREATED + ${allDeptNames.length} EMPLOYEE_ASSIGNED_TO_DEPARTMENT events broadcast`);
     } catch (socketErr) {
-      // Don't fail the request if socket isn't ready
       console.warn('⚠️  Socket broadcast skipped:', (socketErr as Error).message);
     }
 
@@ -240,14 +279,14 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       .then(() => console.log(`✅ Credentials emailed to ${personalEmail}`))
       .catch(err => console.error(`⚠️ Email failed for ${personalEmail}:`, err.message));
 
-    // Return standardized response for UI display
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
-      fullName, 
-      systemEmail, 
+      fullName,
+      systemEmail,
       plainPassword,
       userId: newUser.id,
       employeeId: newEmployee.id,
+      departments: allDeptNames,
     });
   } catch (err: any) {
     console.error('Error creating user:', err);

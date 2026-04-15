@@ -1,12 +1,11 @@
 /**
  * useEmployeeSocket
  *
- * Connects to the Socket.io server and listens for EMPLOYEE_CREATED events.
- * On receipt, the React Query 'employees' cache is invalidated so every component
- * using useEmployees() re-fetches and shows the new record immediately.
+ * Connects to the Socket.io server and listens for:
+ *  - EMPLOYEE_CREATED              → invalidates employees + departments cache
+ *  - EMPLOYEE_ASSIGNED_TO_DEPARTMENT → invalidates departments cache for that dept
  *
- * Also stores the most-recently-created employee for components that want to
- * show a toast or banner without re-fetching.
+ * Mounted once in DashboardLayout — one connection per browser session.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -18,16 +17,19 @@ const SOCKET_URL =
   import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000';
 
 export interface EmployeeCreatedPayload {
-  employee: Employee;
+  employee: Employee & { departments: string[] };
+  departments: string[];
   createdAt: string;
   message: string;
 }
 
-/**
- * Mount this hook once at a high level (e.g. DashboardLayout or App).
- * It returns the latest EMPLOYEE_CREATED payload and a flag for whether
- * the socket is currently connected.
- */
+export interface EmployeeAssignedToDeptPayload {
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  role: string;
+}
+
 export function useEmployeeSocket(userId?: string) {
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
@@ -36,7 +38,6 @@ export function useEmployeeSocket(userId?: string) {
     useState<EmployeeCreatedPayload | null>(null);
 
   useEffect(() => {
-    // Connect (or reuse) socket
     const socket = io(SOCKET_URL, {
       auth: { token: 'dashboard', userId: userId ?? 'dashboard' },
       transports: ['websocket', 'polling'],
@@ -57,32 +58,43 @@ export function useEmployeeSocket(userId?: string) {
       setIsConnected(false);
     });
 
-    socket.on('connect_error', (err) => {
-      console.warn('[EmployeeSocket] connect_error:', err.message);
-    });
+    socket.on('connect_error', (err) =>
+      console.warn('[EmployeeSocket] connect_error:', err.message)
+    );
 
-    // ── Main event ────────────────────────────────────────────────────────
+    // ── EMPLOYEE_CREATED ─────────────────────────────────────────────────
     socket.on('EMPLOYEE_CREATED', (payload: EmployeeCreatedPayload) => {
-      console.log('🎉 [EmployeeSocket] EMPLOYEE_CREATED received', payload);
+      console.log('🎉 [EmployeeSocket] EMPLOYEE_CREATED', payload);
 
-      // 1. Update React Query cache — invalidate so every useEmployees() refetches
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-
-      // 2. Optimistic prepend: add the new employee to cached data immediately
-      //    so the UI updates even before the refetch completes
+      // Optimistic prepend — instant UI update before refetch
       queryClient.setQueryData<Employee[]>(['employees'], (old) => {
         if (!old) return [payload.employee];
-        // Guard against duplicates
         if (old.some((e) => e.id === payload.employee.id)) return old;
         return [payload.employee, ...old];
       });
 
-      // 3. Expose the last event so consuming components can show toasts
+      // Invalidate employees so any stale data is refreshed
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+
+      // Invalidate departments — counts changed
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+
       setLastCreatedEmployee(payload);
     });
 
+    // ── EMPLOYEE_ASSIGNED_TO_DEPARTMENT ──────────────────────────────────
+    socket.on(
+      'EMPLOYEE_ASSIGNED_TO_DEPARTMENT',
+      (payload: EmployeeAssignedToDeptPayload) => {
+        console.log('🏢 [EmployeeSocket] EMPLOYEE_ASSIGNED_TO_DEPARTMENT', payload);
+        // Refresh department list so employee counts update in real-time
+        queryClient.invalidateQueries({ queryKey: ['departments'] });
+      }
+    );
+
     return () => {
       socket.off('EMPLOYEE_CREATED');
+      socket.off('EMPLOYEE_ASSIGNED_TO_DEPARTMENT');
       socket.disconnect();
     };
   }, [userId, queryClient]);

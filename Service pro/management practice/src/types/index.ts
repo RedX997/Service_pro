@@ -106,8 +106,10 @@ export interface Employee {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   mobile?: string;
-  department: string;
+  department?: string;          // Primary (backward-compat)
+  departments?: string[];       // All assigned departments
   role: string;
   status: 'active' | 'inactive';
   avatarUrl?: string;
