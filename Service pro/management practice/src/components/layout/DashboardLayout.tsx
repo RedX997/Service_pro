@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { DashboardErrorBoundary } from './DashboardErrorBoundary';
@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Settings, HelpCircle, LogOut } from 'lucide-react';
+import { useEmployeeSocket } from '@/hooks/useEmployeeSocket';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,6 +19,22 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // ── Real-time employee updates ───────────────────────────────────────────
+  // Mount once per session; updates React Query cache & triggers toast
+  const { lastCreatedEmployee } = useEmployeeSocket(user?.id?.toString());
+
+  useEffect(() => {
+    if (!lastCreatedEmployee) return;
+    toast({
+      title: '🎉 New Employee Onboarded',
+      description: lastCreatedEmployee.message,
+      duration: 6000,
+      // Navigate to employees page on click (toast action)
+    });
+  }, [lastCreatedEmployee]);
+  // ────────────────────────────────────────────────────────────────────────
 
   const handleLogout = () => {
     logout();

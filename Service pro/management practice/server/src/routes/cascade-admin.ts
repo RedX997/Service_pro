@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { sendCredentialsEmail } from '../helpers/mailer.js';
+import { getIO } from '../socket.js';
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
@@ -167,6 +168,73 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       },
     });
 
+    // Map system role → Employee role/department defaults
+    const employeeRoleMap: Record<string, { role: string; department: string }> = {
+      receptionist: { role: 'Associate', department: 'Compliance' },
+      manager: { role: 'Manager', department: 'Tax Consultation' },
+      super_admin: { role: 'Senior Manager', department: 'GST Services' },
+    };
+    const empDefaults = employeeRoleMap[role] ?? { role: 'Associate', department: 'Compliance' };
+
+    // ── Create Employee record (deduplication guard on email) ──────────────
+    let newEmployee = await prisma.employee.findFirst({ where: { email: systemEmail } });
+    if (!newEmployee) {
+      newEmployee = await prisma.employee.create({
+        data: {
+          name: fullName,
+          email: systemEmail,
+          role: empDefaults.role,
+          department: empDefaults.department,
+          status: 'active',
+        },
+      });
+    }
+    console.log(`✅ Employee record created: ${newEmployee.id}`);
+
+    // ── Persist in-app notifications for managers and super_admins ─────────
+    const notifyRecipients = await prisma.user.findMany({
+      where: {
+        role: { role_name: { in: ['super_admin', 'manager'] } },
+        is_active: true,
+      },
+      select: { id: true },
+    });
+
+    if (notifyRecipients.length > 0) {
+      await prisma.notification.createMany({
+        data: notifyRecipients.map((u) => ({
+          userId: u.id,
+          type: 'system',
+          title: 'New Employee Added',
+          message: `${fullName} has been onboarded as ${empDefaults.role} in ${empDefaults.department}.`,
+          data: {
+            employeeId: newEmployee!.id,
+            role: empDefaults.role,
+            department: empDefaults.department,
+          },
+          priority: 'normal',
+          actionUrl: '/employees',
+        })),
+        skipDuplicates: true,
+      });
+      console.log(`📬 Notifications persisted for ${notifyRecipients.length} users`);
+    }
+
+    // ── Emit EMPLOYEE_CREATED socket event to all connected dashboards ──────
+    try {
+      const io = getIO();
+      const eventPayload = {
+        employee: newEmployee,
+        createdAt: new Date().toISOString(),
+        message: `${fullName} joined as ${empDefaults.role} in ${empDefaults.department}`,
+      };
+      io.emit('EMPLOYEE_CREATED', eventPayload);
+      console.log('📡 EMPLOYEE_CREATED event broadcast to all clients');
+    } catch (socketErr) {
+      // Don't fail the request if socket isn't ready
+      console.warn('⚠️  Socket broadcast skipped:', (socketErr as Error).message);
+    }
+
     // Send email — fire and forget, don't block the response
     sendCredentialsEmail(personalEmail, fullName, systemEmail, plainPassword, role)
       .then(() => console.log(`✅ Credentials emailed to ${personalEmail}`))
@@ -178,7 +246,8 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       fullName, 
       systemEmail, 
       plainPassword,
-      userId: newUser.id 
+      userId: newUser.id,
+      employeeId: newEmployee.id,
     });
   } catch (err: any) {
     console.error('Error creating user:', err);

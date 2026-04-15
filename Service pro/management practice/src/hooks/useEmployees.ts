@@ -15,7 +15,14 @@ export const useCreateEmployee = () => {
   return useMutation({
     mutationFn: (employee: Omit<Employee, 'id' | 'joinDate' | 'createdAt'>) =>
       employeeService.create(employee as any),
-    onSuccess: () => {
+    onSuccess: (newEmployee) => {
+      // Update cache optimistically so the new card appears immediately
+      queryClient.setQueryData<Employee[]>(['employees'], (old) => {
+        if (!old) return [newEmployee];
+        if (old.some((e) => e.id === newEmployee.id)) return old;
+        return [newEmployee, ...old];
+      });
+      // Also invalidate to ensure consistency with the server
       queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
   });

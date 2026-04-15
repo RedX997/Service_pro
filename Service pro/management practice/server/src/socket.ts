@@ -171,6 +171,13 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
 
     // ========== END MESSAGING EVENTS ==========
 
+    // ========== EMPLOYEE EVENTS ==========
+    // NOTE: EMPLOYEE_CREATED is a server-originated broadcast event.
+    // It is emitted by the cascade-admin route via getIO().emit('EMPLOYEE_CREATED', payload)
+    // whenever a new employee credential is created by a Cascade Super Admin.
+    // All connected dashboard clients listen for this event via useEmployeeSocket hook.
+    // ========== END EMPLOYEE EVENTS ==========
+
     // Handle disconnection
     socket.on('disconnect', async () => {
       console.log(`❌ User disconnected: ${userName} (ID: ${userId})`);
