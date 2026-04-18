@@ -1,34 +1,109 @@
-# Gradle files
-.gradle/
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+server/node_modules/
+/.pnp
+.pnp.js
+
+# ─── Build Artifacts ─────────────────────────────────────────────────────────
+dist/
 build/
+server/dist/
+*.tsbuildinfo
+.cache/
 
-# Local configuration file (sdk path, etc)
-local.properties
+# ─── Environment Variables (NEVER commit secrets) ────────────────────────────
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+server/.env
+server/.env.local
+server/.env.production
 
-# Log/OS Files
+# ─── Internal / Archived Dev Files ───────────────────────────────────────────
+archived_dev_files/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
+# ─── OS Files ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# IntelliJ
-*.iml
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.vscode/
 .idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
 
-# Keystore files
-*.jks
-*.keystore
+# ─── Database ────────────────────────────────────────────────────────────────
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+uint32
+uint64
+server/dev.db
+server/prisma/dev.db
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
+# ─── Prisma ──────────────────────────────────────────────────────────────────
+.prisma/
 
-# Android Profiling
-*.hprof
+# ─── Temporary / Diagnostic Files ────────────────────────────────────────────
+*.tmp
+*.temp
+.temp/
+.tmp/
+server/backfill-*.js
+server/check-*.js
+server/check-*.ts
+server/create-*.ts
+server/restore-*.ts
+server/sync-*.ts
+server/update-*.ts
+server/uploads/
+server/scratch/
+src/pages/DiagnosticTest.tsx
+src/test.js
+
+# ─── Test HTML Files (local only) ────────────────────────────────────────────
+test-*.html
+test-*.js
+*-test.html
+
+# ─── Markdown Docs (internal/clutter — keep only README.md) ─────────────────
+*.md
+!README.md
+
+# ─── Zip / Archive Files ─────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+servicepro-build.zip
+
+# ─── Deployment Platform Files ───────────────────────────────────────────────
+.vercel
+.netlify
+.output
+.nuxt
+.next
+out/
+
+# ─── Lock Files ──────────────────────────────────────────────────────────────
+bun.lockb
+
+# ─── Batch / Shell Scripts ───────────────────────────────────────────────────
+*.bat
+*.sh
