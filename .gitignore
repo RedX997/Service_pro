@@ -107,3 +107,35 @@ bun.lockb
 # ─── Batch / Shell Scripts ───────────────────────────────────────────────────
 *.bat
 *.sh
+
+# ─── Development Guides and Local Notes (Keep local, ignore in Git) ──────────
+*-GUIDE.md
+*-SUMMARY.md
+*-FIX.md
+*-INVENTORY.md
+*-TEST.md
+*-COMPARISON.md
+*-IMPLEMENTATION.md
+*-EXPLANATION.md
+*-NOTE.md
+HOW-TO-*.md
+QUICK-*.md
+TECH-*.md
+CHECKOUT-*.md
+CLIENT-*.md
+DATA-*.md
+DASHBOARD-*.md
+DATABASE-*.md
+EMPLOYEE-*.md
+FINAL-*.md
+
+# ─── Scripts and Database Tools (Keep local, ignore in Git) ──────────────────
+*.sql
+*.zip
+*.html
+backup-database.bat
+
+# ─── Nested Service pro directory (Keep local, ignore in Git) ────────────────
+Service pro/
+"Service pro/"
+Service_pro/
