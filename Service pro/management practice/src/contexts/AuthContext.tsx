@@ -5,8 +5,8 @@ export interface User {
   id: number
   name: string
   email: string
-  role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
-  originalRole?: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin'
+  role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin' | 'employee'
+  originalRole?: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin' | 'employee'
   sessionId?: number
   phone?: string
   address?: string
@@ -31,7 +31,7 @@ interface AuthContextType {
   updateUser: (data: Partial<User>) => void
   isAuthenticated: boolean
   isLoading: boolean
-  switchRole: (role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin') => void
+  switchRole: (role: 'super_admin' | 'manager' | 'receptionist' | 'cascade_admin' | 'employee') => void
 }
 
 // Create context
@@ -126,7 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   // Switch role function - allows super admin and manager to view different dashboards
-  const switchRole = (newRole: 'super_admin' | 'manager' | 'receptionist') => {
+  const switchRole = (newRole: 'super_admin' | 'manager' | 'receptionist' | 'employee') => {
     if (!user) return
     
     // Use originalRole to determine permissions (not current role)

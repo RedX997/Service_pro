@@ -89,8 +89,7 @@ router.post('/', async (req, res) => {
           phone: phone ?? null,
           mobile: mobile ?? null,
           role,
-          department: primaryDept,        // backward-compat single field
-          departments: allDeptNames,       // full array
+          department: primaryDept,   // primary dept (single column)
           status: status ?? 'active',
           avatarUrl: avatarUrl ?? null,
         },
@@ -176,7 +175,7 @@ router.patch('/:id', async (req, res) => {
         data: {
           ...rest,
           ...(primaryDept !== undefined && { department: primaryDept }),
-          ...(allDeptNames !== undefined && { departments: allDeptNames }),
+          // departments array removed — junction table handles multi-dept
         },
       });
 

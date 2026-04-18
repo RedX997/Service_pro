@@ -117,6 +117,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       });
     });
 
+    // When a new employee is created, refresh the notification feed
+    // for admin/manager so the bell badge updates without a page reload
+    newSocket.on('EMPLOYEE_CREATED', () => {
+      if (user?.role === 'super_admin' || user?.role === 'manager') {
+        fetchNotifications();
+      }
+    });
+
     setSocket(newSocket);
     return () => {
       newSocket.disconnect();

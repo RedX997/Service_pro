@@ -104,10 +104,21 @@ console.log('Cascade admin routes registered at /api/cascade-admin');
 app.use('/api/support', supportRoutes);
 console.log('Support routes registered at /api/support');
 
-httpServer.listen(port, () => {
+httpServer.listen(port, async () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);
     console.log(`🔌 Socket.io ready for connections`);
     console.log(`📡 Listening on 0.0.0.0:${port}`);
+
+    // Ensure all core roles exist in DB (idempotent upserts)
+    const coreRoles = ['cascade_admin', 'super_admin', 'manager', 'receptionist', 'employee'];
+    for (const roleName of coreRoles) {
+      await prisma.role.upsert({
+        where: { role_name: roleName },
+        update: {},
+        create: { role_name: roleName },
+      }).catch((e: Error) => console.warn(`⚠️  Role upsert skipped for '${roleName}':`, e.message));
+    }
+    console.log('✅ Core roles verified in DB');
 
     // Schedule 10-min reminders for all upcoming appointments
     scheduleAllUpcomingReminders();

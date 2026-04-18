@@ -37,7 +37,6 @@ model Employee {
   mobile       String?
   role         String
   department   String?             // Primary department (backward compat)
-  departments  String[] @default([]) // All assigned departments
   status       String   @default("active")
   avatarUrl    String?  @db.Text
   createdAt    DateTime @default(now())

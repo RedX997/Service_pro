@@ -50,12 +50,14 @@ const roleLabels: Record<string, string> = {
   receptionist: 'Receptionist',
   manager: 'Manager',
   super_admin: 'Super Admin',
+  employee: 'Employee',
 };
 
 const roleBadgeClass: Record<string, string> = {
   receptionist: 'bg-blue-100 text-blue-800',
   manager: 'bg-purple-100 text-purple-800',
   super_admin: 'bg-orange-100 text-orange-800',
+  employee: 'bg-green-100 text-green-800',
 };
 
 import { formatDistanceToNow } from 'date-fns';
@@ -181,7 +183,7 @@ export default function CascadeAdminDashboard() {
         {
           to_email: form.personalEmail,
           full_name: form.fullName,
-          role: form.role === 'super_admin' ? 'Super Admin' : form.role === 'manager' ? 'Manager' : 'Receptionist',
+          role: form.role === 'super_admin' ? 'Super Admin' : form.role === 'manager' ? 'Manager' : form.role === 'employee' ? 'Employee' : 'Receptionist',
           system_email: data.systemEmail,
           password: data.plainPassword,
         },
@@ -221,7 +223,7 @@ export default function CascadeAdminDashboard() {
           {
             to_email: user.personal_email,
             full_name: user.name,
-            role: user.role.role_name === 'super_admin' ? 'Super Admin' : user.role.role_name === 'manager' ? 'Manager' : 'Receptionist',
+            role: user.role.role_name === 'super_admin' ? 'Super Admin' : user.role.role_name === 'manager' ? 'Manager' : user.role.role_name === 'employee' ? 'Employee' : 'Receptionist',
             system_email: data.systemEmail,
             password: data.plainPassword,
           },
@@ -652,63 +654,69 @@ export default function CascadeAdminDashboard() {
             </div>
             <div className="grid gap-2">
               <Label>Role</Label>
-              <Select value={form.role} onValueChange={v => setForm({ ...form, role: v })}>
+              <Select
+                value={form.role}
+                onValueChange={v => setForm({ ...form, role: v, departments: v !== 'employee' ? [] : form.departments })}
+              >
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="receptionist">Receptionist</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* ── Multi-select Departments ── */}
-            <div className="grid gap-2">
-              <Label>
-                Departments
-                <span className="ml-1 text-xs text-muted-foreground font-normal">
-                  (optional — select one or more)
-                </span>
-              </Label>
-              <div className="border rounded-md p-3 max-h-44 overflow-y-auto space-y-2 bg-muted/20">
-                {availableDepts.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No departments found</p>
-                ) : (
-                  availableDepts.map((dept) => (
-                    <label
-                      key={dept.id}
-                      className="flex items-center gap-2.5 cursor-pointer group"
-                    >
-                      <Checkbox
-                        checked={form.departments.includes(dept.name)}
-                        onCheckedChange={() => toggleDept(dept.name)}
-                        id={`ca-dept-${dept.id}`}
-                      />
-                      <span className="text-sm group-hover:text-primary transition-colors">
-                        {dept.name}
-                      </span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {dept.employees} active
-                      </span>
-                    </label>
-                  ))
+            {/* ── Multi-select Departments (Employee only) ── */}
+            {form.role === 'employee' && (
+              <div className="grid gap-2">
+                <Label>
+                  Departments
+                  <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    (optional — select one or more)
+                  </span>
+                </Label>
+                <div className="border rounded-md p-3 max-h-44 overflow-y-auto space-y-2 bg-muted/20">
+                  {availableDepts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No departments found</p>
+                  ) : (
+                    availableDepts.map((dept) => (
+                      <label
+                        key={dept.id}
+                        className="flex items-center gap-2.5 cursor-pointer group"
+                      >
+                        <Checkbox
+                          checked={form.departments.includes(dept.name)}
+                          onCheckedChange={() => toggleDept(dept.name)}
+                          id={`ca-dept-${dept.id}`}
+                        />
+                        <span className="text-sm group-hover:text-primary transition-colors">
+                          {dept.name}
+                        </span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {dept.employees} active
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {form.departments.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {form.departments.map((d) => (
+                      <Badge key={d} className="bg-primary/10 text-primary border-0 text-xs">
+                        {d}
+                        <button
+                          onClick={() => toggleDept(d)}
+                          className="ml-1.5 hover:text-destructive"
+                          type="button"
+                        >×</button>
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
-              {form.departments.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {form.departments.map((d) => (
-                    <Badge key={d} className="bg-primary/10 text-primary border-0 text-xs">
-                      {d}
-                      <button
-                        onClick={() => toggleDept(d)}
-                        className="ml-1.5 hover:text-destructive"
-                        type="button"
-                      >×</button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
 
             {previewEmail() && (
               <div className="rounded-md bg-muted px-3 py-2">

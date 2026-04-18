@@ -269,6 +269,9 @@ export function TodayTasksCard() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Task</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Provide details for the new task including title, description, priority, and due date.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                   <Input

@@ -98,7 +98,7 @@ router.post('/users/list', requireCascadeAdmin, async (req, res) => {
     const users = await prisma.user.findMany({
       where: {
         role: {
-          role_name: { in: ['receptionist', 'manager', 'super_admin'] },
+          role_name: { in: ['receptionist', 'manager', 'super_admin', 'employee'] },
         },
       },
       select: {
@@ -129,97 +129,109 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       return res.status(400).json({ error: 'fullName, personalEmail, and role are required' });
     }
 
-    const validRoles = ['receptionist', 'manager', 'super_admin'];
+    const validRoles = ['receptionist', 'manager', 'super_admin', 'employee'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    // Find role record
-    const roleRecord = await prisma.role.findUnique({ where: { role_name: role } });
-    if (!roleRecord) return res.status(400).json({ error: 'Role not found in DB' });
+    // Find or create role record (upsert ensures 'employee' exists without manual migration)
+    const roleRecord = await prisma.role.upsert({
+      where: { role_name: role },
+      update: {},
+      create: { role_name: role },
+    });
 
-    // Generate credentials
-    const systemEmail = await generateSystemEmail(fullName, role);
+    // Trim fullName to prevent trailing space issues
+    const trimmedFullName = fullName.trim();
+    const systemEmail = await generateSystemEmail(trimmedFullName, role);
     const plainPassword = generatePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
-
-    // Save user to users table (for login)
-    const newUser = await prisma.user.create({
-      data: {
-        name: fullName,
-        email: systemEmail,
-        password: hashedPassword,
-        role_id: roleRecord.id,
-        personal_email: personalEmail,
-        is_active: true,
-      },
-      include: { role: true },
-    });
-
-    // Save to cascade_credentials table (company credential log)
-    await prisma.cascadeCredential.create({
-      data: {
-        full_name: fullName,
-        role_name: role,
-        system_email: systemEmail,
-        personal_email: personalEmail,
-        plain_password: plainPassword,
-        is_active: true,
-      },
-    });
 
     // Map system role → Employee role/department defaults
     const employeeRoleMap: Record<string, { role: string; department: string }> = {
       receptionist: { role: 'Associate', department: 'Compliance' },
       manager: { role: 'Manager', department: 'Tax Consultation' },
       super_admin: { role: 'Senior Manager', department: 'GST Services' },
+      employee: { role: 'Associate', department: '' },
     };
     const empDefaults = employeeRoleMap[role] ?? { role: 'Associate', department: 'Compliance' };
+
+    // For employee role: only use the user-selected departments (no forced default dept)
+    const forcedDept = role === 'employee' ? [] : [empDefaults.department];
 
     // Merge: user-selected departments + role default (deduped, filtered)
     const allDeptNames: string[] = Array.from(
       new Set([
         ...(selectedDepts as string[]),
-        empDefaults.department,
+        ...forcedDept,
       ])
     ).filter(Boolean);
-    const primaryDept = allDeptNames[0] ?? empDefaults.department;
+    const primaryDept = allDeptNames[0] ?? (empDefaults.department || null);
 
-    // ── Atomic transaction: create Employee + junction rows ────────────────
-    let newEmployee = await prisma.employee.findFirst({ where: { email: systemEmail } });
-    if (!newEmployee) {
-      newEmployee = await prisma.$transaction(async (tx) => {
-        const emp = await tx.employee.create({
+    // ── Atomic transaction: Create everything or nothing ────────────────────
+    const { newUser, newEmployee, actualDepts } = await prisma.$transaction(async (tx) => {
+      // 1. Create User (for login)
+      const userRec = await tx.user.create({
+        data: {
+          name: trimmedFullName,
+          email: systemEmail,
+          password: hashedPassword,
+          role_id: roleRecord.id,
+          personal_email: personalEmail,
+          is_active: true,
+        },
+        include: { role: true },
+      });
+
+      // 2. Create CascadeCredential (audit log)
+      await tx.cascadeCredential.create({
+        data: {
+          full_name: trimmedFullName,
+          role_name: role,
+          system_email: systemEmail,
+          personal_email: personalEmail,
+          plain_password: plainPassword,
+          is_active: true,
+        },
+      });
+
+      // 3. Create Employee (practice management record)
+      // Check for existing employee by email to avoid unique constraint violations
+      let empRec = await tx.employee.findFirst({ where: { email: systemEmail } });
+      if (!empRec) {
+        empRec = await tx.employee.create({
           data: {
-            name: fullName,
+            name: trimmedFullName,
             email: systemEmail,
             role: empDefaults.role,
             department: primaryDept,
-            departments: allDeptNames,
             status: 'active',
           },
         });
+      }
 
-        // Resolve department names → IDs then write junction rows
-        if (allDeptNames.length > 0) {
-          const deptRecords = await tx.department.findMany({
-            where: { name: { in: allDeptNames } },
-            select: { id: true, name: true },
+      // 4. Create junction rows for departments
+      if (allDeptNames.length > 0) {
+        const deptRecords = await tx.department.findMany({
+          where: { name: { in: allDeptNames } },
+          select: { id: true, name: true },
+        });
+        
+        if (deptRecords.length > 0) {
+          await tx.employeeDepartment.createMany({
+            data: deptRecords.map((d) => ({
+              employeeId: empRec!.id,
+              departmentId: d.id,
+            })),
+            skipDuplicates: true,
           });
-          if (deptRecords.length > 0) {
-            await tx.employeeDepartment.createMany({
-              data: deptRecords.map((d) => ({
-                employeeId: emp.id,
-                departmentId: d.id,
-              })),
-              skipDuplicates: true,
-            });
-          }
         }
-        return emp;
-      });
-    }
-    console.log(`✅ Employee record created: ${newEmployee.id}`);
+      }
+
+      return { newUser: userRec, newEmployee: empRec, actualDepts: allDeptNames };
+    });
+
+    console.log(`✅ Atomic creation success: User ${newUser.id}, Employee ${newEmployee.id}`);
 
     // ── Persist in-app notifications for managers and super_admins ─────────
     const notifyRecipients = await prisma.user.findMany({
@@ -236,11 +248,11 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
           userId: u.id,
           type: 'system',
           title: 'New Employee Added',
-          message: `${fullName} joined as ${empDefaults.role} in ${allDeptNames.join(', ')}.`,
+          message: `${trimmedFullName} joined as ${empDefaults.role} in ${actualDepts.join(', ') || 'No Department'}.`,
           data: {
-            employeeId: newEmployee!.id,
+            employeeId: newEmployee.id,
             role: empDefaults.role,
-            departments: allDeptNames,
+            departments: actualDepts,
           },
           priority: 'normal',
           actionUrl: '/employees',
@@ -255,21 +267,21 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       const io = getIO();
       // Main event — picked up by useEmployeeSocket on every dashboard
       io.emit('EMPLOYEE_CREATED', {
-        employee: { ...newEmployee, departments: allDeptNames },
-        departments: allDeptNames,
+        employee: { ...newEmployee, departments: actualDepts },
+        departments: actualDepts,
         createdAt: new Date().toISOString(),
-        message: `${fullName} joined as ${empDefaults.role} in ${allDeptNames.join(', ')}`,
+        message: `${trimmedFullName} joined as ${empDefaults.role} in ${actualDepts.join(', ') || 'No Department'}`,
       });
       // Per-department events — department dashboards listen for this
-      for (const deptName of allDeptNames) {
+      for (const deptName of actualDepts) {
         io.emit('EMPLOYEE_ASSIGNED_TO_DEPARTMENT', {
-          employeeId: newEmployee!.id,
-          employeeName: fullName,
+          employeeId: newEmployee.id,
+          employeeName: trimmedFullName,
           department: deptName,
           role: empDefaults.role,
         });
       }
-      console.log(`📡 EMPLOYEE_CREATED + ${allDeptNames.length} EMPLOYEE_ASSIGNED_TO_DEPARTMENT events broadcast`);
+      console.log(`📡 Broadcast complete for ${trimmedFullName}`);
     } catch (socketErr) {
       console.warn('⚠️  Socket broadcast skipped:', (socketErr as Error).message);
     }

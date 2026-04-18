@@ -27,13 +27,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     if (!lastCreatedEmployee) return;
+    // Only notify admins and managers about new employee onboarding
+    if (user?.role !== 'super_admin' && user?.role !== 'manager') return;
     toast({
       title: '🎉 New Employee Onboarded',
       description: lastCreatedEmployee.message,
       duration: 6000,
-      // Navigate to employees page on click (toast action)
     });
-  }, [lastCreatedEmployee]);
+  }, [lastCreatedEmployee, user?.role]);
   // ────────────────────────────────────────────────────────────────────────
 
   const handleLogout = () => {

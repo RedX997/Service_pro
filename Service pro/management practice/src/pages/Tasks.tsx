@@ -306,6 +306,9 @@ export default function Tasks() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Task</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Fill out the form below to create a new task.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                   <Input
