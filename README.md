@@ -28,7 +28,17 @@ A full-stack practice management platform for professional services firms. Manag
 
 ## Getting Started
 
-All configuration is managed via environment variables. See internal documentation for setup details.
+1. **Install Dependencies** (in root and server):
+   ```cmd
+   npm install
+   cd server && npm install
+   ```
+
+2. **Run Application**:
+   - `npm run dev` (Frontend)
+   - `cd server && npm run dev` (Backend)
+
+See [HOW-TO-RUN.md](./HOW-TO-RUN.md) for detailed instructions.
 
 ## License
 
