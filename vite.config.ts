@@ -29,9 +29,18 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // Explicitly define environment variables for production
-      // process.env takes priority (Cloudflare Pages injects vars this way)
+      // process.env takes priority (Vercel / Cloudflare Pages injects vars this way)
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
         process.env.VITE_API_BASE_URL || env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+      ),
+      'import.meta.env.VITE_EMAILJS_SERVICE_ID': JSON.stringify(
+        process.env.VITE_EMAILJS_SERVICE_ID || env.VITE_EMAILJS_SERVICE_ID || ''
+      ),
+      'import.meta.env.VITE_EMAILJS_TEMPLATE_ID': JSON.stringify(
+        process.env.VITE_EMAILJS_TEMPLATE_ID || env.VITE_EMAILJS_TEMPLATE_ID || ''
+      ),
+      'import.meta.env.VITE_EMAILJS_PUBLIC_KEY': JSON.stringify(
+        process.env.VITE_EMAILJS_PUBLIC_KEY || env.VITE_EMAILJS_PUBLIC_KEY || ''
       ),
     },
   };

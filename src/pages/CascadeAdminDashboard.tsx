@@ -160,19 +160,32 @@ export default function CascadeAdminDashboard() {
       if (!res.ok) throw new Error(data.error);
 
       // Send credentials email via EmailJS (browser-based, no SMTP port issues)
-      emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID,
-        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-        {
-          to_email: form.personalEmail,
-          full_name: form.fullName,
-          role: form.role === 'super_admin' ? 'Super Admin' : form.role === 'manager' ? 'Manager' : 'Receptionist',
-          system_email: data.systemEmail,
-          password: data.plainPassword,
-        },
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-      ).then(() => console.log('✅ Email sent via EmailJS'))
-       .catch(err => console.error('⚠️ EmailJS error:', err));
+      const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+      if (serviceId && templateId && publicKey && form.personalEmail) {
+        emailjs.send(
+          serviceId,
+          templateId,
+          {
+            to_email: form.personalEmail,
+            full_name: form.fullName,
+            role: form.role === 'super_admin' ? 'Super Admin' : form.role === 'manager' ? 'Manager' : 'Receptionist',
+            system_email: data.systemEmail,
+            password: data.plainPassword,
+          },
+          publicKey
+        ).then(() => {
+          console.log('✅ Email sent via EmailJS');
+          toast({ title: 'Email Sent', description: `Login credentials emailed to ${form.personalEmail}` });
+        }).catch(err => {
+          console.error('⚠️ EmailJS error:', err);
+          toast({ title: 'Email Delivery Warning', description: `Could not send email: ${err?.text || err?.message || 'Check EmailJS keys'}`, variant: 'destructive' });
+        });
+      } else if (!serviceId || !publicKey) {
+        console.warn('⚠️ EmailJS environment variables (VITE_EMAILJS_*) are not configured');
+      }
 
       // Show credentials on screen immediately
       setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
@@ -199,10 +212,14 @@ export default function CascadeAdminDashboard() {
 
       // Send new credentials via EmailJS
       const user = users.find(u => u.id === id);
-      if (user?.personal_email) {
+      const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+      if (user?.personal_email && serviceId && templateId && publicKey) {
         emailjs.send(
-          import.meta.env.VITE_EMAILJS_SERVICE_ID,
-          import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+          serviceId,
+          templateId,
           {
             to_email: user.personal_email,
             full_name: user.name,
@@ -210,8 +227,13 @@ export default function CascadeAdminDashboard() {
             system_email: data.systemEmail,
             password: data.plainPassword,
           },
-          import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-        ).catch(err => console.error('⚠️ EmailJS error:', err));
+          publicKey
+        ).then(() => {
+          toast({ title: 'Email Sent', description: `New credentials sent to ${user.personal_email}` });
+        }).catch(err => {
+          console.error('⚠️ EmailJS error:', err);
+          toast({ title: 'Email Delivery Warning', description: `Could not send email: ${err?.text || err?.message || 'Check EmailJS keys'}`, variant: 'destructive' });
+        });
       }
 
       // Show new credentials on screen immediately
