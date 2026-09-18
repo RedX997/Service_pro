@@ -90,6 +90,16 @@ app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_PATH));
 console.log('Static files served from:', UPLOADS_PATH);
 
+// Root landing route
+app.get('/', (req, res) => {
+    res.json({
+        name: 'ServicePro Backend API',
+        status: 'online',
+        health: '/health',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Basic health check route
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', version: '1.0.1', timestamp: new Date().toISOString() });
