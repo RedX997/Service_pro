@@ -51,62 +51,79 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
     allowEIO3: true
   });
 
-  // Authentication middleware - SIMPLIFIED FOR MESSAGING
+  // Authentication middleware - SUPPORT BOTH SYSTEM USERS (INTEGER) AND EMPLOYEES/CLIENTS (UUID)
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
       const userId = socket.handshake.auth.userId;
-      
-      // For messaging system, we'll skip strict authentication for now
-      // In production, verify JWT token here
-      
+      const clientRole = socket.handshake.auth.role;
+      const clientName = socket.handshake.auth.userName;
+
       if (!userId) {
-        console.log('⚠️  No userId provided, allowing connection anyway');
+        console.log('⚠️  No userId provided, allowing anonymous connection');
         socket.data.userId = 'anonymous';
         socket.data.userName = 'Anonymous User';
         socket.data.userRole = 'guest';
         return next();
       }
 
-      // Try to find employee by UUID (only if userId looks like a UUID, not an integer)
+      // 1. Check if numeric user ID (System User: Super Admin, Manager, Receptionist, Cascade Admin)
+      const numericUserId = typeof userId === 'number' ? userId : parseInt(String(userId), 10);
+      if (!isNaN(numericUserId) && String(userId) === String(numericUserId)) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: numericUserId },
+          include: { role: true }
+        });
+
+        if (dbUser) {
+          socket.data.userId = dbUser.id;
+          socket.data.userName = dbUser.name;
+          socket.data.userRole = dbUser.role?.role_name || clientRole || 'super_admin';
+          console.log(`✅ System User authenticated: ${dbUser.name} (ID: ${dbUser.id}, Role: ${socket.data.userRole})`);
+          return next();
+        }
+      }
+
+      // 2. Try to find employee by UUID
       const isUUID = typeof userId === 'string' && userId.includes('-');
-      const employee = isUUID ? await prisma.employee.findUnique({
-        where: { id: userId }
-      }) : null;
+      if (isUUID) {
+        const employee = await prisma.employee.findUnique({
+          where: { id: userId }
+        });
 
-      if (employee) {
-        socket.data.userId = employee.id;
-        socket.data.userName = employee.name;
-        socket.data.userRole = 'employee';
-        console.log(`✅ Employee authenticated: ${employee.name}`);
-        return next();
+        if (employee) {
+          socket.data.userId = employee.id;
+          socket.data.userName = employee.name;
+          socket.data.userRole = 'employee';
+          console.log(`✅ Employee authenticated: ${employee.name}`);
+          return next();
+        }
+
+        // 3. Try to find client by UUID
+        const client = await prisma.client.findUnique({
+          where: { id: userId }
+        });
+
+        if (client) {
+          socket.data.userId = client.id;
+          socket.data.userName = client.name;
+          socket.data.userRole = 'client';
+          console.log(`✅ Client authenticated: ${client.name}`);
+          return next();
+        }
       }
 
-      // If not found as employee, try as client (also UUID only)
-      const client = isUUID ? await prisma.client.findUnique({
-        where: { id: userId }
-      }) : null;
-
-      if (client) {
-        socket.data.userId = client.id;
-        socket.data.userName = client.name;
-        socket.data.userRole = 'client';
-        console.log(`✅ Client authenticated: ${client.name}`);
-        return next();
-      }
-
-      // If neither found, allow connection anyway for development
-      console.log(`⚠️  User ${userId} not found, allowing connection anyway`);
+      // 4. Fallback: Authenticate with client-provided role
       socket.data.userId = userId;
-      socket.data.userName = 'Unknown User';
-      socket.data.userRole = 'guest';
+      socket.data.userName = clientName || 'User';
+      socket.data.userRole = clientRole || 'staff';
+      console.log(`ℹ️ Connected with client-provided role: ${socket.data.userRole} (User ID: ${userId})`);
       next();
     } catch (error) {
       console.error('Socket authentication error:', error);
-      // Allow connection even on error for development
       socket.data.userId = 'error';
       socket.data.userName = 'Error User';
-      socket.data.userRole = 'guest';
+      socket.data.userRole = socket.handshake.auth.role || 'guest';
       next();
     }
   });
@@ -119,15 +136,28 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
 
     console.log(`✅ User connected: ${userName} (ID: ${userId}, Role: ${userRole})`);
 
-    // Join user-specific room (use string ID for UUID support)
-    const userRoom = `user:${userId}`;
-    socket.join(userRoom);
-    console.log(`   → Joined room: ${userRoom}`);
+    // Join user-specific rooms (both string and numeric keys)
+    socket.join(`user:${userId}`);
+    socket.join(String(userId));
+    console.log(`   → Joined room: user:${userId}`);
 
     // Join role-based room
-    const roleRoom = `role:${userRole}`;
-    socket.join(roleRoom);
-    console.log(`   → Joined room: ${roleRoom}`);
+    if (userRole && userRole !== 'guest') {
+      socket.join(`role:${userRole}`);
+      console.log(`   → Joined room: role:${userRole}`);
+    }
+
+    // Super Admin gets all staff notifications
+    if (userRole === 'super_admin') {
+      socket.join('role:manager');
+      socket.join('role:receptionist');
+      console.log(`   → Super Admin joined all staff role rooms`);
+    }
+
+    // All authenticated staff join 'role:staff'
+    if (['super_admin', 'manager', 'receptionist', 'cascade_admin', 'employee', 'staff'].includes(userRole)) {
+      socket.join('role:staff');
+    }
 
     // ========== MESSAGING EVENTS ==========
 

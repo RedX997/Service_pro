@@ -92,15 +92,33 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const newSocket = io(SOCKET_URL, {
       auth: {
         token: 'dummy-token',
-        userId: user.id
+        userId: user.id,
+        role: user.role,
+        userName: user.name,
       },
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 10
+    });
+
+    newSocket.on('connect', () => {
+      console.log('✅ Notification socket connected successfully to', SOCKET_URL, 'Socket ID:', newSocket.id);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ Notification socket connection error:', error);
     });
 
     newSocket.on('notification', (notification: Notification) => {
-      setNotifications(prev => [notification, ...prev]);
+      console.log('🔔 Real-time notification received:', notification);
+      setNotifications(prev => {
+        // Avoid duplicate entries if both role and user room emitted
+        if (notification.id && prev.some(n => n.id === notification.id)) {
+          return prev;
+        }
+        return [notification, ...prev];
+      });
       setUnreadCount(prev => prev + 1);
 
       const priorityEmoji = {

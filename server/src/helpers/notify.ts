@@ -127,7 +127,7 @@ export async function notify(options: NotifyOptions) {
         notifications.push(...roleNotifications);
 
         // Emit to role room via Socket.io (broadcasts to all connected users with that role)
-        emitToRole(role, 'notification', {
+        const payload = {
           type,
           title,
           message,
@@ -135,9 +135,16 @@ export async function notify(options: NotifyOptions) {
           priority,
           actionUrl,
           createdAt: new Date()
+        };
+
+        emitToRole(role, 'notification', payload);
+
+        // Also emit to each individual user's room to ensure dual delivery
+        roleRecord.users.forEach((u, index) => {
+          emitToUser(u.id, 'notification', roleNotifications[index] || payload);
         });
 
-        console.log(`✅ Notifications created and emitted to role '${role}' (${roleRecord.users.length} users)`);
+        console.log(`✅ Notifications created and emitted to role '${role}' and ${roleRecord.users.length} user rooms`);
       } else {
         console.warn(`⚠️ No users found with role '${role}'`);
       }

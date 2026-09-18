@@ -68,53 +68,56 @@ router.post('/', async (req, res) => {
         console.log('Client created successfully:', client);
         console.log('Created client assignedEmployee:', client.assignedEmployee);
         
-        // 📝 LOG ACTIVITY: Client Created
-        const employeeName = client.assignedEmployee ? await getEmployeeName(client.assignedEmployee) : null;
-        await logClientActivity({
-            clientId: client.id,
-            performedBy: req.body.performedBy || 5, // TODO: Get from authenticated user
-            action: ClientActivityAction.CLIENT_CREATED,
-            description: `Client ${client.name} was created${employeeName ? ` and assigned to ${employeeName}` : ''}`,
-            metadata: {
-                initialStatus: client.status,
-                assignedEmployee: client.assignedEmployee,
-                assignedEmployeeName: employeeName,
-                services: client.services,
-                company: client.company,
-                email: client.email,
-                phone: client.phone
-            }
-        });
-        
-        // Send notifications about new client
-        // 1. Notify managers and admins (oversight)
-        await notify({
-            role: 'manager',
-            type: 'system',
-            title: 'New Client Added',
-            message: `${client.name} has been added as a new client`,
-            data: { 
+        // 📝 LOG ACTIVITY: Client Created (safe try-catch)
+        try {
+            const employeeName = client.assignedEmployee ? await getEmployeeName(client.assignedEmployee) : null;
+            const performedByHeader = req.headers['x-user-id'] ? parseInt(req.headers['x-user-id'] as string) : null;
+            const performedBy = req.body.performedBy || (performedByHeader && !isNaN(performedByHeader) ? performedByHeader : 1);
+            await logClientActivity({
                 clientId: client.id,
-                clientName: client.name,
-                company: client.company
-            },
-            priority: 'normal',
-            actionUrl: '/clients'
-        });
+                performedBy,
+                action: ClientActivityAction.CLIENT_CREATED,
+                description: `Client ${client.name} was created${employeeName ? ` and assigned to ${employeeName}` : ''}`,
+                metadata: {
+                    initialStatus: client.status,
+                    assignedEmployee: client.assignedEmployee,
+                    assignedEmployeeName: employeeName,
+                    services: client.services,
+                    company: client.company,
+                    email: client.email,
+                    phone: client.phone
+                }
+            });
+        } catch (actErr) {
+            console.warn('⚠️ Could not log client activity (non-fatal):', actErr);
+        }
         
-        await notify({
-            role: 'super_admin',
-            type: 'system',
-            title: 'New Client Added',
-            message: `${client.name} has been added as a new client`,
-            data: { 
-                clientId: client.id,
-                clientName: client.name,
-                company: client.company
-            },
-            priority: 'normal',
-            actionUrl: '/clients'
-        });
+        // 🔔 Send notifications about new client
+        try {
+            const clientNotification = {
+                type: 'system',
+                title: 'New Client Added',
+                message: `${client.name} has been added as a new client`,
+                data: { 
+                    clientId: client.id,
+                    clientName: client.name,
+                    company: client.company
+                },
+                priority: 'normal' as const,
+                actionUrl: '/clients'
+            };
+
+            await Promise.all([
+                notify({ ...clientNotification, role: 'manager' }),
+                notify({ ...clientNotification, role: 'super_admin' }),
+                notify({ ...clientNotification, role: 'receptionist' })
+            ]);
+
+            // Broadcast real-time refresh to all connected clients
+            broadcastToAll('client:created', client);
+        } catch (notifErr) {
+            console.error('⚠️ Could not dispatch notifications:', notifErr);
+        }
         
         // If client is assigned to an employee, notify them
         if (client.assignedEmployee) {
