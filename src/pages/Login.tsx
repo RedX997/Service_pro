@@ -7,12 +7,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, LogIn, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ArrowRight, Building2 } from 'lucide-react';
+
+type LoginRole = 'employee' | 'client';
+type ClientAuthMode = 'login' | 'signup';
+
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 export default function Login() {
+  const [loginRole, setLoginRole] = useState<LoginRole>('employee');
+  const [clientAuthMode, setClientAuthMode] = useState<ClientAuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
+  const [clientConfirmPassword, setClientConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showClientPassword, setShowClientPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { login, isAuthenticated, user } = useAuth();
@@ -25,7 +37,7 @@ export default function Login() {
     }
   }, [isAuthenticated, user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmployeeLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
@@ -37,6 +49,106 @@ export default function Login() {
     });
 
     setIsLoading(false);
+  };
+
+  const handleClientLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientEmail.trim() || !clientPassword.trim()) return;
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/client-portal/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: clientEmail.trim(),
+          password: clientPassword.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.message || 'Invalid email or password');
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      // Navigate to client portal with client data
+      navigate('/client/dashboard', { 
+        state: { 
+          clientId: data.clientId, 
+          clientName: data.clientName,
+          token: data.token 
+        } 
+      });
+    } catch {
+      setError('Unable to connect. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClientSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientEmail.trim() || !clientPassword.trim()) return;
+    
+    if (clientPassword !== clientConfirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (clientPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/client-portal/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: clientEmail.trim(),
+          password: clientPassword.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.message || 'Unable to create account');
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      // Auto-login after signup
+      navigate('/client/dashboard', { 
+        state: { 
+          clientId: data.clientId, 
+          clientName: data.clientName,
+          token: data.token 
+        } 
+      });
+    } catch {
+      setError('Unable to connect. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginRole === 'employee') {
+      await handleEmployeeLogin(e);
+    } else if (clientAuthMode === 'login') {
+      await handleClientLogin(e);
+    } else {
+      await handleClientSignup(e);
+    }
   };
 
   return (
@@ -53,9 +165,9 @@ export default function Login() {
         <div className="relative z-10 w-full flex flex-col justify-between p-16">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-xl shadow-primary/20">
-              <span className="font-bold text-2xl">SP</span>
+              <span className="font-bold text-2xl">D</span>
             </div>
-            <span className="text-3xl font-bold text-white tracking-tight">ServicePro</span>
+            <span className="text-3xl font-bold text-white tracking-tight">Deskflo</span>
           </div>
 
           <div className="space-y-8 max-w-lg">
@@ -79,7 +191,7 @@ export default function Login() {
           </div>
 
           <div className="text-sm text-slate-500">
-            © 2024 ServicePro Inc. All rights reserved.
+            © 2024 Deskflow Inc. All rights reserved.
           </div>
         </div>
       </div>
@@ -96,9 +208,9 @@ export default function Login() {
           <div className="lg:hidden text-center space-y-2">
             <div className="flex items-center justify-center gap-3 mb-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-xl">
-                SP
+                D
               </div>
-              <span className="text-2xl font-bold">ServicePro</span>
+              <span className="text-2xl font-bold">Deskflo</span>
             </div>
           </div>
 
@@ -107,45 +219,186 @@ export default function Login() {
             <p className="text-muted-foreground">Enter your credentials to access your account</p>
           </div>
 
+          {/* Role Selection Buttons */}
+          <div className="flex gap-3 bg-slate-100 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginRole('employee');
+                setError('');
+                setClientEmail('');
+                setClientPassword('');
+              }}
+              className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-all ${
+                loginRole === 'employee'
+                  ? 'bg-white text-primary shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Employee
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginRole('client');
+                setError('');
+                setEmail('');
+                setPassword('');
+              }}
+              className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                loginRole === 'client'
+                  ? 'bg-white text-primary shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Building2 className="h-4 w-4" />
+              Client
+            </button>
+          </div>
+
           <Card className="border-0 shadow-none lg:shadow-xl lg:border lg:bg-card/50 lg:backdrop-blur-sm">
             <CardContent className="pt-6">
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-11 bg-background/50"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <a href="#" className="text-xs text-primary hover:underline font-medium">Forgot password?</a>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="h-11 pr-10 bg-background/50"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
+                {loginRole === 'employee' ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email address</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="name@company.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="h-11 bg-background/50"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        <a href="#" className="text-xs text-primary hover:underline font-medium">Forgot password?</a>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="h-11 pr-10 bg-background/50"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Client Auth Mode Tabs */}
+                    <div className="flex gap-2 bg-slate-100 p-1 rounded-lg mb-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientAuthMode('login');
+                          setError('');
+                          setClientPassword('');
+                          setClientConfirmPassword('');
+                        }}
+                        className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-all ${
+                          clientAuthMode === 'login'
+                            ? 'bg-white text-primary shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Sign In
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientAuthMode('signup');
+                          setError('');
+                          setClientPassword('');
+                          setClientConfirmPassword('');
+                        }}
+                        className={`flex-1 py-2 px-3 rounded-md font-medium text-sm transition-all ${
+                          clientAuthMode === 'signup'
+                            ? 'bg-white text-primary shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Create Account
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="clientEmail">Email address</Label>
+                      <Input
+                        id="clientEmail"
+                        type="email"
+                        placeholder="your.email@company.com"
+                        value={clientEmail}
+                        onChange={e => setClientEmail(e.target.value)}
+                        className="h-11 bg-background/50"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use the email associated with your account
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="clientPassword">Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="clientPassword"
+                          type={showClientPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          value={clientPassword}
+                          onChange={e => setClientPassword(e.target.value)}
+                          className="h-11 pr-10 bg-background/50"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowClientPassword(!showClientPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                        >
+                          {showClientPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {clientAuthMode === 'signup' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="confirmPassword"
+                            type={showClientPassword ? 'text' : 'password'}
+                            placeholder="Confirm your password"
+                            value={clientConfirmPassword}
+                            onChange={e => setClientConfirmPassword(e.target.value)}
+                            className="h-11 pr-10 bg-background/50"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowClientPassword(!showClientPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                          >
+                            {showClientPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {error && (
                   <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-200">
@@ -153,30 +406,38 @@ export default function Login() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full h-11 text-base shadow-lg hover:shadow-primary/25 transition-all" loading={isLoading}>
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 text-base shadow-lg hover:shadow-primary/25 transition-all" 
+                  disabled={isLoading || (loginRole === 'employee' ? !email || !password : !clientEmail || !clientPassword)}
+                >
                   {!isLoading && <LogIn className="mr-2 h-4 w-4" />}
-                  Sign In
+                  {loginRole === 'employee' ? 'Sign In' : (clientAuthMode === 'login' ? 'Sign In' : 'Create Account')}
                 </Button>
               </form>
 
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-4 text-muted-foreground font-medium">Test Credentials</span>
-                </div>
-              </div>
+              {loginRole === 'employee' && (
+                <>
+                  <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-4 text-muted-foreground font-medium">Test Credentials</span>
+                    </div>
+                  </div>
 
-              <div className="bg-gray-50 p-4 rounded-md">
-                <p className="text-sm font-medium text-gray-700 mb-2">Available Test Accounts:</p>
-                <div className="space-y-1 text-sm text-gray-600">
-                  <p><strong>Super Admin:</strong> admin@servicepro.com / admin123</p>
-                  <p><strong>Manager:</strong> manager@servicepro.com / manager123</p>
-                  <p><strong>Receptionist:</strong> receptionist@servicepro.com / receptionist123</p>
-                  <p><strong>Employee:</strong> staff.member@servicepro.com / staff12345</p>
-                </div>
-              </div>
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Available Test Accounts:</p>
+                    <div className="space-y-1 text-sm text-gray-600">
+                      <p><strong>Super Admin:</strong> admin@servicepro.com / admin123</p>
+                      <p><strong>Manager:</strong> manager@servicepro.com / manager123</p>
+                      <p><strong>Receptionist:</strong> receptionist@servicepro.com / receptionist123</p>
+                      <p><strong>Employee:</strong> staff.member@servicepro.com / staff12345</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

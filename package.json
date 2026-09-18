@@ -1,8 +1,8 @@
 {
-  "name": "servicepro-management",
+  "name": "deskflow-management",
   "private": false,
   "version": "1.0.1",
-  "homepage": "https://yourusername.github.io/servicepro-management",
+  "homepage": "https://RedX997.github.io/Service_pro",
   "type": "module",
   "scripts": {
     "dev": "vite",

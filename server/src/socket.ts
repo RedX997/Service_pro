@@ -11,10 +11,43 @@ let io: SocketIOServer | null = null;
 export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: true, // Allow all origins in development
+      origin: function(origin: any, callback: any) {
+        if (!origin) return callback(null, true);
+
+        const envOrigins = process.env.FRONTEND_URL
+          ? process.env.FRONTEND_URL.split(',').map((s: string) => s.trim())
+          : [];
+
+        const allowedOrigins = [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'http://localhost:8080',
+          'https://servicepro-frontend-one.vercel.app',
+          'https://service-pro-chi.vercel.app',
+          'https://deskflo.pages.dev',
+          'https://deskflo.netlify.app',
+          ...envOrigins
+        ];
+
+        const allowedPatterns = [
+          /^https:\/\/.*\.vercel\.app$/,
+          /^https:\/\/.*\.pages\.dev$/,
+          /^https:\/\/.*\.netlify\.app$/,
+          /^file:\/\//
+        ];
+
+        if (allowedOrigins.includes(origin) || allowedPatterns.some(p => p.test(origin))) {
+          return callback(null, true);
+        }
+
+        return callback(null, true);
+      },
       credentials: true,
-      methods: ['GET', 'POST']
-    }
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
+    },
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
   });
 
   // Authentication middleware - SIMPLIFIED FOR MESSAGING

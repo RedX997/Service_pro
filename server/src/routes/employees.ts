@@ -30,9 +30,21 @@ router.post('/', async (req, res) => {
 // Update employee
 router.patch('/:id', async (req, res) => {
     try {
+        // Only pick valid Employee fields to avoid Prisma unknown field errors
+        const { name, email, phone, mobile, role, department, status, avatarUrl } = req.body;
+        const data: any = {};
+        if (name !== undefined) data.name = name;
+        if (email !== undefined) data.email = email;
+        if (phone !== undefined) data.phone = phone;
+        if (mobile !== undefined) data.mobile = mobile;
+        if (role !== undefined) data.role = role;
+        if (department !== undefined) data.department = department;
+        if (status !== undefined) data.status = status;
+        if (avatarUrl !== undefined) data.avatarUrl = avatarUrl;
+
         const employee = await prisma.employee.update({
             where: { id: req.params.id },
-            data: req.body,
+            data,
         });
         res.json(employee);
     } catch (error: any) {
@@ -58,6 +70,10 @@ router.post('/details/:id', async (req, res) => {
 // Delete employee
 router.delete('/:id', async (req, res) => {
     try {
+        // Delete related records first to avoid FK constraint errors
+        await prisma.timeEntry.deleteMany({ where: { employeeId: req.params.id } });
+        await prisma.message.deleteMany({ where: { senderId: req.params.id } });
+        await prisma.conversation.deleteMany({ where: { employeeId: req.params.id } });
         const employee = await prisma.employee.delete({
             where: { id: req.params.id },
         });

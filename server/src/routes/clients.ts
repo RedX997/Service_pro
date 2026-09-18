@@ -150,6 +150,12 @@ router.post('/', async (req, res) => {
         
         console.log('✅ Notifications sent for new client');
         
+        // Emit real-time event so all dashboards update instantly
+        try {
+            const { getIO } = await import('../socket.js');
+            getIO().emit('client:created', { id: client.id, name: client.name, assignedEmployee: client.assignedEmployee });
+        } catch (_) {}
+
         res.json(client);
     } catch (error: any) {
         console.error('Error creating client:', error);
@@ -398,6 +404,12 @@ router.patch('/:id', async (req, res) => {
             });
         }
         
+        // Emit real-time event so all dashboards update client load instantly
+        try {
+            const { getIO } = await import('../socket.js');
+            getIO().emit('client:updated', { id: client.id, assignedEmployee: client.assignedEmployee });
+        } catch (_) {}
+
         res.json(client);
     } catch (error: any) {
         console.error('Error updating client:', error);
@@ -502,10 +514,14 @@ router.delete('/:id', async (req, res) => {
             }
         });
         
-        // Now delete the client
-        await prisma.client.delete({
-            where: { id: req.params.id },
-        });
+        // Now delete the client — delete related records first to avoid FK constraint errors
+        await prisma.clientActivityLog.deleteMany({ where: { clientId: req.params.id } });
+        await prisma.appointment.deleteMany({ where: { clientId: req.params.id } });
+        await prisma.task.deleteMany({ where: { clientId: req.params.id } });
+        await prisma.timeEntry.deleteMany({ where: { clientId: req.params.id } });
+        await prisma.message.deleteMany({ where: { clientId: req.params.id } });
+        await prisma.conversation.deleteMany({ where: { clientId: req.params.id } });
+        await prisma.client.delete({ where: { id: req.params.id } });
         
         res.json({ message: 'Client deleted', clientName: client.name });
     } catch (error: any) {

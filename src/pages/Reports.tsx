@@ -137,7 +137,7 @@ export default function Reports() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServicePro Business Report - ${currentDate}</title>
+    <title>Deskflow Business Report - ${currentDate}</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
         .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #007acc; padding-bottom: 20px; }
@@ -156,7 +156,7 @@ export default function Reports() {
 </head>
 <body>
     <div class="header">
-        <h1>ServicePro Business Report</h1>
+        <h1>Deskflow Business Report</h1>
         <p>Generated on ${currentDate} | Period: ${selectedPeriod}</p>
     </div>
     
@@ -267,15 +267,15 @@ export default function Reports() {
       switch (format) {
         case 'csv':
           const csvData = generateCSVData();
-          downloadCSV(csvData, `servicepro-report-${periodLabel}-${timestamp}.csv`);
+          downloadCSV(csvData, `deskflow-report-${periodLabel}-${timestamp}.csv`);
           break;
         case 'json':
           const jsonData = generateJSONReport();
-          downloadJSON(jsonData, `servicepro-report-${periodLabel}-${timestamp}.json`);
+          downloadJSON(jsonData, `deskflow-report-${periodLabel}-${timestamp}.json`);
           break;
         case 'html':
           const htmlData = generateHTMLReport();
-          downloadHTML(htmlData, `servicepro-report-${periodLabel}-${timestamp}.html`);
+          downloadHTML(htmlData, `deskflow-report-${periodLabel}-${timestamp}.html`);
           break;
       }
       

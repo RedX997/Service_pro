@@ -22,22 +22,24 @@ router.post('/list', async (req, res) => {
 // Get active timer for employee - POST (PUSH)
 router.post('/active/:employeeId', async (req, res) => {
     try {
-        // In this simple implementation, we assume the latest entry without an endTime is the active timer
-        // Note: The schema definition of TimeEntry doesn't explicitly distinguish "ActiveTimer" as a separate table
-        // in the initial plan, but the service logic suggests it might be treated differently.
-        // However, looking at the schema, TimeEntry has startTime and endTime.
-        // If endTime is null, it's active.
+        const { employeeId } = req.params;
+
+        // Resolve employee UUID from User ID if needed
+        let resolvedEmployeeId = employeeId;
+        const employee = await prisma.employee.findUnique({ where: { id: employeeId } }).catch(() => null);
+        if (!employee) {
+            const userRecord = await prisma.user.findUnique({ where: { id: parseInt(employeeId) } }).catch(() => null);
+            if (userRecord) {
+                const emp = await prisma.employee.findFirst({ where: { email: userRecord.email } });
+                if (emp) resolvedEmployeeId = emp.id;
+            }
+        }
 
         const activeEntry = await prisma.timeEntry.findFirst({
-            where: {
-                employeeId: req.params.employeeId,
-                endTime: null
-            },
+            where: { employeeId: resolvedEmployeeId, endTime: null },
             orderBy: { startTime: 'desc' }
         });
 
-        // transform to match frontend expectation of ActiveTimer if needed, 
-        // or just return null if none.
         res.json(activeEntry);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -61,14 +63,24 @@ router.post('/start', async (req, res) => {
         }
 
         // Check if employee exists
-        const employee = await prisma.employee.findUnique({
-            where: { id: employeeId }
-        });
+        // employeeId might be a User integer ID — resolve to Employee UUID via email
+        let employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+        
+        if (!employee) {
+            // Try resolving via User table (employeeId might be a User.id integer)
+            const userRecord = await prisma.user.findUnique({ where: { id: parseInt(employeeId) } }).catch(() => null);
+            if (userRecord) {
+                employee = await prisma.employee.findFirst({ where: { email: userRecord.email } }) || null;
+            }
+        }
         
         if (!employee) {
             console.error('Employee not found:', employeeId);
             return res.status(404).json({ error: 'Employee not found' });
         }
+
+        // Use the resolved employee UUID
+        const resolvedEmployeeId = employee.id;
 
         // Check if client exists
         const client = await prisma.client.findUnique({
@@ -83,19 +95,19 @@ router.post('/start', async (req, res) => {
         // Check if already active
         const existing = await prisma.timeEntry.findFirst({
             where: {
-                employeeId: employeeId,
+                employeeId: resolvedEmployeeId,
                 endTime: null
             }
         });
 
         if (existing) {
-            console.log('Timer already active for employee:', employeeId);
+            console.log('Timer already active for employee:', resolvedEmployeeId);
             return res.status(400).json({ error: 'Timer already active for this employee' });
         }
 
         const timer = await prisma.timeEntry.create({
             data: {
-                employeeId,
+                employeeId: resolvedEmployeeId,
                 clientId,
                 serviceId,
                 startTime: new Date(),
@@ -121,11 +133,20 @@ router.post('/start', async (req, res) => {
 router.post('/stop', async (req, res) => {
     try {
         const { employeeId, notes } = req.body;
-        const activeEntry = await prisma.timeEntry.findFirst({
-            where: {
-                employeeId: employeeId,
-                endTime: null
+
+        // Resolve employee UUID from User ID if needed
+        let resolvedEmployeeId = employeeId;
+        const employee = await prisma.employee.findUnique({ where: { id: employeeId } }).catch(() => null);
+        if (!employee) {
+            const userRecord = await prisma.user.findUnique({ where: { id: parseInt(employeeId) } }).catch(() => null);
+            if (userRecord) {
+                const emp = await prisma.employee.findFirst({ where: { email: userRecord.email } });
+                if (emp) resolvedEmployeeId = emp.id;
             }
+        }
+
+        const activeEntry = await prisma.timeEntry.findFirst({
+            where: { employeeId: resolvedEmployeeId, endTime: null }
         });
 
         if (!activeEntry) {

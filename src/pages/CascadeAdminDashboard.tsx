@@ -75,7 +75,7 @@ export default function CascadeAdminDashboard() {
   const [sessionUserName, setSessionUserName] = useState('');
   const [sessions, setSessions] = useState<any[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [form, setForm] = useState({ fullName: '', personalEmail: '', role: '' });
+  const [form, setForm] = useState({ fullName: '', personalEmail: '', role: '', department: '', phone: '', jobTitle: '' });
   const [credModal, setCredModal] = useState<{ name: string; systemEmail: string; password: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -133,10 +133,9 @@ export default function CascadeAdminDashboard() {
 
   // Preview system email as user types
   const previewEmail = () => {
-    if (!form.fullName || !form.role) return '';
+    if (!form.fullName) return '';
     const slug = form.fullName.trim().toLowerCase().replace(/\s+/g, '.');
-    const roleTag = form.role.replace('_', '');
-    return `${slug}.${roleTag}ca@gmail.com`;
+    return `${slug}@deskflo.com`;
   };
 
   const copyToClipboard = (text: string, key: string) => {
@@ -177,7 +176,7 @@ export default function CascadeAdminDashboard() {
 
       // Show credentials on screen immediately
       setCredModal({ name: data.fullName, systemEmail: data.systemEmail, password: data.plainPassword });
-      setForm({ fullName: '', personalEmail: '', role: '' });
+      setForm({ fullName: '', personalEmail: '', role: '', department: '', phone: '', jobTitle: '' });
       setIsDialogOpen(false);
       fetchUsers();
       fetchCredentials();
@@ -620,7 +619,7 @@ export default function CascadeAdminDashboard() {
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label>Full Name</Label>
+              <Label>Full Name *</Label>
               <Input
                 placeholder="John Doe"
                 value={form.fullName}
@@ -628,7 +627,7 @@ export default function CascadeAdminDashboard() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Personal Email</Label>
+              <Label>Personal Email *</Label>
               <Input
                 type="email"
                 placeholder="john@gmail.com"
@@ -637,19 +636,52 @@ export default function CascadeAdminDashboard() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Role</Label>
-              <Select value={form.role} onValueChange={v => setForm({ ...form, role: v })}>
+              <Label>Role *</Label>
+              <Select value={form.role} onValueChange={v => setForm({ ...form, role: v, department: '' })}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
                   <SelectItem value="receptionist">Receptionist</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {form.role === 'employee' && (
+            <div className="grid gap-2">
+              <Label>Department *</Label>
+              <Select value={form.department} onValueChange={v => setForm({ ...form, department: v })}>
+                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GST Services">GST Services</SelectItem>
+                  <SelectItem value="Income Tax">Income Tax</SelectItem>
+                  <SelectItem value="Company Registration">Company Registration</SelectItem>
+                  <SelectItem value="Audit Services">Audit Services</SelectItem>
+                  <SelectItem value="Tax Consultation">Tax Consultation</SelectItem>
+                  <SelectItem value="Administration">Administration</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            )}
+            <div className="grid gap-2">
+              <Label>Job Title</Label>
+              <Input
+                placeholder="e.g. Senior Associate"
+                value={form.jobTitle}
+                onChange={e => setForm({ ...form, jobTitle: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Phone</Label>
+              <Input
+                placeholder="+91 98765 43210"
+                value={form.phone}
+                onChange={e => setForm({ ...form, phone: e.target.value })}
+              />
+            </div>
             {previewEmail() && (
               <div className="rounded-md bg-muted px-3 py-2">
-                <p className="text-xs text-muted-foreground mb-1">System email preview</p>
+                <p className="text-xs text-muted-foreground mb-1">System email (login)</p>
                 <p className="text-sm font-mono font-medium">{previewEmail()}</p>
               </div>
             )}

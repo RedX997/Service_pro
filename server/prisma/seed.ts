@@ -82,16 +82,58 @@ async function main() {
   console.log('📦 Includes ALL data from entire application + Reports analytics');
   console.log('');
 
-  // Clear existing data
+  // Always seed roles and users (upsert = safe to run multiple times)
+  console.log('👥 Seeding roles and users...');
+  const bcrypt = await import('bcrypt');
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+
+  const roles = await Promise.all([
+    prisma.role.upsert({ where: { role_name: 'super_admin' }, update: {}, create: { role_name: 'super_admin' } }),
+    prisma.role.upsert({ where: { role_name: 'manager' }, update: {}, create: { role_name: 'manager' } }),
+    prisma.role.upsert({ where: { role_name: 'receptionist' }, update: {}, create: { role_name: 'receptionist' } }),
+    prisma.role.upsert({ where: { role_name: 'cascade_admin' }, update: {}, create: { role_name: 'cascade_admin' } }),
+  ]);
+
+  const superAdminRole = roles[0];
+  const managerRole = roles[1];
+  const receptionistRole = roles[2];
+
+  await Promise.all([
+    prisma.user.upsert({ where: { email: 'admin@servicepro.com' }, update: {}, create: { name: 'Admin User', email: 'admin@servicepro.com', password: hashedPassword, role_id: superAdminRole.id, job_title: 'Super Admin' } }),
+    prisma.user.upsert({ where: { email: 'manager@servicepro.com' }, update: {}, create: { name: 'Manager User', email: 'manager@servicepro.com', password: await bcrypt.hash('manager123', 10), role_id: managerRole.id, job_title: 'Manager' } }),
+    prisma.user.upsert({ where: { email: 'receptionist@servicepro.com' }, update: {}, create: { name: 'Receptionist User', email: 'receptionist@servicepro.com', password: await bcrypt.hash('receptionist123', 10), role_id: receptionistRole.id, job_title: 'Receptionist' } }),
+    prisma.user.upsert({ where: { email: 'staff.member@servicepro.com' }, update: {}, create: { name: 'Staff Member', email: 'staff.member@servicepro.com', password: await bcrypt.hash('staff12345', 10), role_id: receptionistRole.id, job_title: 'Staff' } }),
+    prisma.user.upsert({ where: { email: 'cascade@admin.com' }, update: {}, create: { name: 'Cascade Admin', email: 'cascade@admin.com', password: await bcrypt.hash('CascadeAdmin@123', 10), role_id: roles[3].id, job_title: 'Cascade Admin' } }),
+  ]);
+  console.log('✅ Roles and users seeded');
+  console.log('');
+
+  // Skip seeding if data already exists
+  const existingUsers = await prisma.client.count();
+  if (existingUsers > 0) {
+    console.log('✅ Database already seeded, skipping...');
+    return;
+  }
+
+  // Clear existing data (order matters due to foreign key constraints)
   console.log('🗑️  Clearing existing data...');
+  await prisma.clientActivityLog.deleteMany();
+  await prisma.supportTicket.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.userSession.deleteMany();
+  await prisma.appointment.deleteMany();
+  await prisma.task.deleteMany();
   await prisma.timeEntry.deleteMany();
   await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.visitor.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.client.deleteMany();
   await prisma.department.deleteMany();
   console.log('✅ Existing data cleared');
   console.log('');
+
+  // Seed Roles and Users
 
   // Seed Departments
   console.log('🏢 Seeding departments...');

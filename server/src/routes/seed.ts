@@ -74,4 +74,31 @@ router.post('/run', async (req, res) => {
   }
 });
 
+// One-time endpoint to create/fix all login users including cascade admin
+router.post('/init-users', async (req, res) => {
+  try {
+    const bcrypt = await import('bcrypt');
+
+    // Upsert roles
+    const roles = await Promise.all([
+      prisma.role.upsert({ where: { role_name: 'super_admin' }, update: {}, create: { role_name: 'super_admin' } }),
+      prisma.role.upsert({ where: { role_name: 'manager' }, update: {}, create: { role_name: 'manager' } }),
+      prisma.role.upsert({ where: { role_name: 'receptionist' }, update: {}, create: { role_name: 'receptionist' } }),
+      prisma.role.upsert({ where: { role_name: 'cascade_admin' }, update: {}, create: { role_name: 'cascade_admin' } }),
+    ]);
+
+    const users = await Promise.all([
+      prisma.user.upsert({ where: { email: 'admin@servicepro.com' }, update: {}, create: { name: 'Admin User', email: 'admin@servicepro.com', password: await bcrypt.hash('admin123', 10), role_id: roles[0].id, job_title: 'Super Admin' } }),
+      prisma.user.upsert({ where: { email: 'manager@servicepro.com' }, update: {}, create: { name: 'Manager User', email: 'manager@servicepro.com', password: await bcrypt.hash('manager123', 10), role_id: roles[1].id, job_title: 'Manager' } }),
+      prisma.user.upsert({ where: { email: 'receptionist@servicepro.com' }, update: {}, create: { name: 'Receptionist User', email: 'receptionist@servicepro.com', password: await bcrypt.hash('receptionist123', 10), role_id: roles[2].id, job_title: 'Receptionist' } }),
+      prisma.user.upsert({ where: { email: 'staff.member@servicepro.com' }, update: {}, create: { name: 'Staff Member', email: 'staff.member@servicepro.com', password: await bcrypt.hash('staff12345', 10), role_id: roles[2].id, job_title: 'Staff' } }),
+      prisma.user.upsert({ where: { email: 'cascade@admin.com' }, update: {}, create: { name: 'Cascade Admin', email: 'cascade@admin.com', password: await bcrypt.hash('CascadeAdmin@123', 10), role_id: roles[3].id, job_title: 'Cascade Admin' } }),
+    ]);
+
+    res.json({ message: 'Users initialized', users: users.map(u => ({ id: u.id, email: u.email })) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

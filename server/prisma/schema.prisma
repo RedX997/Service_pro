@@ -22,11 +22,18 @@ model Client {
   assignedEmployee String?
   lastContact      DateTime?
   avatarUrl        String?  @db.Text
+  
+  // Client Portal Authentication
+  password         String?  // Hashed password for client portal login
+  passwordSetAt    DateTime?
+  
   createdAt        DateTime @default(now())
   messages         Message[]
   timeEntries      TimeEntry[]
   tasks            Task[]
   activityLogs     ClientActivityLog[]
+  
+  @@index([email])
 }
 
 model Employee {
@@ -350,4 +357,104 @@ model SupportTicket {
   @@index([status])
   @@index([createdAt])
   @@map("support_tickets")
+}
+
+// ============================================================
+// CA CLIENT PORTAL — Phase 1 Models (Modules 2–6)
+// Added without modifying any existing models
+// ============================================================
+
+// Module 2 — Client Profile (extended compliance info)
+model ClientProfile {
+  id              String   @id @default(uuid())
+  clientId        String   @unique  // FK to existing Client.id
+  entityType      String?  // Individual / Proprietorship / Partnership / LLP / Pvt Ltd / etc.
+  pan             String?
+  gstin           String?
+  businessName    String?
+  altMobile       String?
+  email           String?
+  address         String?
+  panVerified     Boolean  @default(false)
+  gstVerified     Boolean  @default(false)
+  tcAcceptedAt    DateTime?
+  tcVersion       String?
+  tcIp            String?
+  profileComplete Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("client_profiles")
+}
+
+// Module 3 — Service Status per Client (replaces services[] string array)
+model ClientService {
+  id           String   @id @default(uuid())
+  clientId     String
+  serviceName  String
+  status       String   @default("not_started") // not_started / in_progress / waiting_on_client / completed / overdue
+  assignedTo   String?  // Employee.id
+  progress     Int      @default(0) // 0–100
+  notes        String?  @db.Text
+  lastUpdated  DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  tasks        ServiceTask[]
+
+  @@index([clientId])
+  @@index([status])
+  @@map("client_services")
+}
+
+// Module 3 — Document/Task checklist per service
+model ServiceTask {
+  id             String   @id @default(uuid())
+  serviceId      String
+  name           String
+  description    String?  @db.Text
+  dueDate        DateTime?
+  status         String   @default("pending") // pending / uploaded / approved / rejected
+  rejectedReason String?  @db.Text
+  fileUrl        String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  service        ClientService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([status])
+  @@map("service_tasks")
+}
+
+// Module 4 — Compliance Deadline Cards
+model ComplianceDeadline {
+  id         String   @id @default(uuid())
+  clientId   String
+  name       String   // GSTR-1, GSTR-3B, ITR, TDS, MCA Annual Filing, etc.
+  dueDate    DateTime
+  status     String   @default("pending") // pending / filed / overdue
+  isCustom   Boolean  @default(false)     // CA-added custom deadline
+  serviceId  String?  // linked ClientService.id (optional)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("compliance_deadlines")
+}
+
+// Module 6 — Multi-Company Switcher
+model CompanyProfile {
+  id         String   @id @default(uuid())
+  clientId   String   // The Client.id this company profile belongs to
+  ownerId    String   // The primary Client.id who owns/manages this company
+  isPrimary  Boolean  @default(false)
+  isApproved Boolean  @default(false) // CA must approve before client can access
+  addedAt    DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([clientId])
+  @@map("company_profiles")
 }

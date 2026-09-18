@@ -12,10 +12,13 @@ import { useVisitors } from '@/hooks/useVisitors';
 import { useMessages } from '@/hooks/useMessages';
 import { useTaskStats } from '@/hooks/useTasks';
 import { useDepartments } from '@/hooks/useDepartments';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Send, Calendar, Users as UsersIcon } from 'lucide-react';
+import { PlusCircle, Send, Calendar, Users as UsersIcon, Eye, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 
 // New Helper Components based on preferences
 const WelcomeBanner = ({ roleName, isVisible }: { roleName: string, isVisible: boolean }) => {
@@ -30,7 +33,7 @@ const WelcomeBanner = ({ roleName, isVisible }: { roleName: string, isVisible: b
   );
 };
 
-const QuickActionsPanel = ({ isVisible }: { isVisible: boolean }) => {
+const QuickActionsPanel = ({ isVisible, role, onViewClients }: { isVisible: boolean; role?: string; onViewClients?: () => void }) => {
   const navigate = useNavigate();
   if (!isVisible) return null;
   return (
@@ -38,9 +41,15 @@ const QuickActionsPanel = ({ isVisible }: { isVisible: boolean }) => {
       <Button onClick={() => navigate('/tasks')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
         <PlusCircle className="h-4 w-4 text-primary" /> New Task
       </Button>
-      <Button onClick={() => navigate('/clients')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
-        <UsersIcon className="h-4 w-4 text-primary" /> Add Client
-      </Button>
+      {role === 'employee' ? (
+        <Button onClick={onViewClients} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
+          <Eye className="h-4 w-4 text-primary" /> View Clients
+        </Button>
+      ) : (
+        <Button onClick={() => navigate('/clients')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
+          <UsersIcon className="h-4 w-4 text-primary" /> Add Client
+        </Button>
+      )}
       <Button onClick={() => navigate('/appointments')} variant="outline" className="flex items-center gap-2 font-medium bg-white dark:bg-slate-900 border-slate-200 shadow-sm h-12">
         <Calendar className="h-4 w-4 text-primary" /> Book Apt
       </Button>
@@ -303,12 +312,21 @@ function ReceptionistDashboard() {
 
 function EmployeeDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: employees = [] } = useEmployees();
+  const { data: clients = [] } = useClients();
+  const [showClientsModal, setShowClientsModal] = useState(false);
   
   // Find current employee record
   const currentEmployee = useMemo(() => {
     return employees.find(e => e.email === user?.email);
   }, [employees, user]);
+
+  // Get clients assigned to this employee
+  const myClients = useMemo(() => {
+    if (!currentEmployee) return [];
+    return clients.filter(c => c.assignedEmployee === currentEmployee.id);
+  }, [clients, currentEmployee]);
 
   const { data: stats } = useTaskStats(currentEmployee?.id || '');
   
@@ -336,7 +354,7 @@ function EmployeeDashboard() {
         <p className="text-muted-foreground">Your personal task and workspace overview</p>
       </div>
 
-      <QuickActionsPanel isVisible={showQuickActions} />
+      <QuickActionsPanel isVisible={showQuickActions} role="employee" onViewClients={() => setShowClientsModal(true)} />
 
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${gapClass}`}>
         <StatCard
@@ -369,6 +387,66 @@ function EmployeeDashboard() {
         </div>
         <RecentActivities />
       </div>
+
+      {/* View Clients Modal */}
+      <Dialog open={showClientsModal} onOpenChange={setShowClientsModal}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UsersIcon className="h-5 w-5" /> My Assigned Clients
+            </DialogTitle>
+          </DialogHeader>
+          {myClients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <UsersIcon className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No clients assigned to you yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 mt-2">
+              {myClients.map(client => {
+                const serviceProgress = client.services?.length ? Math.min((client.services.length / 5) * 100, 100) : 0;
+                return (
+                  <div key={client.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold">{client.name}</p>
+                        <p className="text-sm text-muted-foreground">{client.company || client.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
+                          {client.status}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex items-center gap-1"
+                          onClick={() => { setShowClientsModal(false); navigate('/messages'); }}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" /> Chat
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Services</span>
+                        <span>{client.services?.length || 0} / 5</span>
+                      </div>
+                      <Progress value={serviceProgress} className="h-2" />
+                    </div>
+                    {client.services && client.services.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {client.services.map(s => (
+                          <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

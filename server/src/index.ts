@@ -9,11 +9,12 @@ import { fileURLToPath } from 'url';
 
 const UPLOADS_PATH = path.resolve(process.cwd(), 'uploads');
 
+// Load .env from server directory (auto-detected by dotenv)
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT || '3000', 10);
 
 // Initialize Socket.io
 initializeSocket(httpServer);
@@ -32,24 +33,34 @@ import testNotificationRoutes from './routes/test-notification.js';
 import appointmentRoutes from './routes/appointments.js';
 import cascadeAdminRoutes from './routes/cascade-admin.js';
 import supportRoutes from './routes/support.js';
+import clientPortalRoutes from './routes/client-portal.js';
 import { scheduleAllUpcomingReminders } from './helpers/appointmentReminders.js';
 
+// CORS configuration - must be before other middleware
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, Postman, or file://)
     if (!origin) return callback(null, true);
     
+    const envOrigins = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map((s: string) => s.trim())
+      : [];
+
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:3000',
       'http://localhost:8080',
       'https://servicepro-frontend-one.vercel.app',
       'https://service-pro-chi.vercel.app',
+      'https://deskflo.pages.dev',
+      'https://deskflo.netlify.app',
+      ...envOrigins
     ];
     
     const allowedPatterns = [
-      /^https:\/\/servicepro-frontend-.*\.vercel\.app$/,
-      /^https:\/\/service-pro-.*\.vercel\.app$/,
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.pages\.dev$/,
+      /^https:\/\/.*\.netlify\.app$/,
       /^file:\/\//  // Allow file:// protocol for local HTML files
     ];
     
@@ -65,12 +76,15 @@ app.use(cors({
       }
     }
     
-    callback(null, true); // Allow all for development
+    callback(null, true); // Allow all for development or preview
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-client-id'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours preflight cache
 }));
+
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_PATH));
 console.log('Static files served from:', UPLOADS_PATH);
@@ -103,8 +117,10 @@ app.use('/api/cascade-admin', cascadeAdminRoutes);
 console.log('Cascade admin routes registered at /api/cascade-admin');
 app.use('/api/support', supportRoutes);
 console.log('Support routes registered at /api/support');
+app.use('/api/client-portal', clientPortalRoutes);
+console.log('Client portal routes registered at /api/client-portal');
 
-httpServer.listen(port, () => {
+httpServer.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Server is running at http://localhost:${port}`);
     console.log(`🔌 Socket.io ready for connections`);
     console.log(`📡 Listening on 0.0.0.0:${port}`);

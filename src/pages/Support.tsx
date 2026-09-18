@@ -177,8 +177,8 @@ export default function Support() {
                   </div>
                   <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">Email IT Support</h3>
                   <p className="text-xs text-slate-500 mb-3">Response time: ~2 hours</p>
-                  <a href="mailto:support@servicepro.com" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-                    support@servicepro.com <ExternalLink className="h-3 w-3" />
+                  <a href="mailto:support@deskflow.com" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
+                    support@deskflow.com <ExternalLink className="h-3 w-3" />
                   </a>
                 </CardContent>
                </Card>

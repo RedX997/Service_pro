@@ -27,8 +27,7 @@ async function requireCascadeAdmin(req: any, res: any, next: any) {
 // Generate system email from name + role
 async function generateSystemEmail(fullName: string, role: string): Promise<string> {
   const slug = fullName.trim().toLowerCase().replace(/\s+/g, '.');
-  const roleTag = role.replace('_', '');
-  const base = `${slug}.${roleTag}ca@gmail.com`;
+  const base = `${slug}@deskflo.com`;
 
   // Check for collision
   const existing = await prisma.user.findUnique({ where: { email: base } });
@@ -37,7 +36,7 @@ async function generateSystemEmail(fullName: string, role: string): Promise<stri
   // Add numeric suffix if collision
   let suffix = 2;
   while (true) {
-    const candidate = `${slug}.${roleTag}ca${suffix}@gmail.com`;
+    const candidate = `${slug}${suffix}@deskflo.com`;
     const exists = await prisma.user.findUnique({ where: { email: candidate } });
     if (!exists) return candidate;
     suffix++;
@@ -122,25 +121,33 @@ router.post('/users/list', requireCascadeAdmin, async (req, res) => {
 // POST /api/cascade-admin/users — create user + send credentials
 router.post('/users', requireCascadeAdmin, async (req, res) => {
   try {
-    const { fullName, personalEmail, role } = req.body;
+    const { fullName, personalEmail, role, department, jobTitle, phone } = req.body;
 
     if (!fullName || !personalEmail || !role) {
       return res.status(400).json({ error: 'fullName, personalEmail, and role are required' });
     }
 
-    const validRoles = ['receptionist', 'manager', 'super_admin'];
+    const validRoles = ['receptionist', 'manager', 'super_admin', 'employee'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    // Find role record
-    const roleRecord = await prisma.role.findUnique({ where: { role_name: role } });
-    if (!roleRecord) return res.status(400).json({ error: 'Role not found in DB' });
+    // Ensure role exists in DB (upsert so employee role is auto-created if missing)
+    const roleRecord = await prisma.role.upsert({
+      where: { role_name: role },
+      update: {},
+      create: { role_name: role },
+    });
 
     // Generate credentials
     const systemEmail = await generateSystemEmail(fullName, role);
     const plainPassword = generatePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+
+    const roleLabel =
+      role === 'super_admin' ? 'Super Admin' :
+      role === 'manager' ? 'Manager' :
+      role === 'receptionist' ? 'Receptionist' : 'Employee';
 
     // Save user to users table (for login)
     const newUser = await prisma.user.create({
@@ -151,8 +158,23 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
         role_id: roleRecord.id,
         personal_email: personalEmail,
         is_active: true,
+        job_title: jobTitle || roleLabel,
+        department: department || null,
+        phone: phone || null,
       },
       include: { role: true },
+    });
+
+    // Always create Employee record so user appears in Employee Dashboard
+    const newEmployee = await prisma.employee.create({
+      data: {
+        name: fullName,
+        email: systemEmail,
+        phone: phone || null,
+        role: roleLabel,
+        department: department || null,
+        status: 'active',
+      },
     });
 
     // Save to cascade_credentials table (company credential log)
@@ -167,18 +189,25 @@ router.post('/users', requireCascadeAdmin, async (req, res) => {
       },
     });
 
-    // Send email — fire and forget, don't block the response
+    // Emit real-time event so all dashboards update instantly
+    try {
+      const { getIO } = await import('../socket.js');
+      getIO().emit('employee:created', newEmployee);
+      getIO().emit('user:created', { id: newUser.id, name: fullName, role: roleLabel });
+    } catch (_) {}
+
+    // Send email — fire and forget
     sendCredentialsEmail(personalEmail, fullName, systemEmail, plainPassword, role)
       .then(() => console.log(`✅ Credentials emailed to ${personalEmail}`))
       .catch(err => console.error(`⚠️ Email failed for ${personalEmail}:`, err.message));
 
-    // Return standardized response for UI display
     res.status(201).json({ 
       success: true,
       fullName, 
       systemEmail, 
       plainPassword,
-      userId: newUser.id 
+      userId: newUser.id,
+      employeeId: newEmployee.id,
     });
   } catch (err: any) {
     console.error('Error creating user:', err);

@@ -133,10 +133,4 @@ FINAL-*.md
 # ─── Scripts and Database Tools (Keep local, ignore in Git) ──────────────────
 *.sql
 *.zip
-*.html
 backup-database.bat
-
-# ─── Nested Service pro directory (Keep local, ignore in Git) ────────────────
-Service pro/
-"Service pro/"
-Service_pro/

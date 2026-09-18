@@ -89,6 +89,21 @@ router.post('/', async (req, res) => {
             priority: 'normal',
             actionUrl: '/visitors'
         });
+
+        // 4. Notify receptionists
+        await notify({
+            role: 'receptionist',
+            type: 'visitor',
+            title: 'New Visitor Check-In',
+            message: `${visitor.name} has checked in. Purpose: ${visitor.purpose}`,
+            data: { 
+                visitorId: visitor.id,
+                visitorName: visitor.name,
+                purpose: visitor.purpose
+            },
+            priority: 'normal',
+            actionUrl: '/visitors'
+        });
         
         // If visitor has a host assigned, notify that employee
         if (visitor.hostId) {

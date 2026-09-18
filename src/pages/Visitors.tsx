@@ -63,7 +63,8 @@ import {
   useDeleteVisitor 
 } from '@/hooks/useVisitors';
 import { useCreateClient } from '@/hooks/useClients';
-import { employees, availableServices } from '@/lib/data';
+import { useEmployees } from '@/hooks/useEmployees';
+import { availableServices } from '@/lib/data';
 import { Visitor } from '@/types';
 
 interface VisitorForm {
@@ -114,6 +115,7 @@ export default function Visitors() {
 
   // React Query hooks
   const { data: visitors = [], isLoading, error } = useVisitors();
+  const { data: employees = [] } = useEmployees();
   const createVisitorMutation = useCreateVisitor();
   const updateVisitorMutation = useUpdateVisitor();
   const checkOutVisitorMutation = useCheckOutVisitor();

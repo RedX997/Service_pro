@@ -29,8 +29,9 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // Explicitly define environment variables for production
+      // process.env takes priority (Cloudflare Pages injects vars this way)
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
-        env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+        process.env.VITE_API_BASE_URL || env.VITE_API_BASE_URL || 'http://localhost:3000/api'
       ),
     },
   };

@@ -8,7 +8,6 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/StrictProtectedRoute";
 import "@/lib/debug"; // Import debug utilities
-import DiagnosticTest from "./pages/DiagnosticTest";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -32,6 +31,7 @@ import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 import CascadeAdminDashboard from "./pages/CascadeAdminDashboard";
 import CascadeAdminLogin from "./pages/CascadeAdminLogin";
+import ClientPortal from "./pages/client-portal/ClientPortal";
 
 const queryClient = new QueryClient();
 
@@ -45,7 +45,6 @@ function AppRoutes() {
       {/* Development/Testing Routes - Only accessible in development */}
       {import.meta.env.MODE === 'development' && (
         <>
-          <Route path="/diagnostic" element={<DiagnosticTest />} />
           <Route path="/auth-demo" element={<AuthDemo />} />
           <Route path="/rbac-test" element={<RBACTest />} />
         </>
@@ -203,6 +202,9 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+
+      {/* CA Client Portal — completely separate from employee routes */}
+      <Route path="/client/*" element={<ClientPortal />} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>
