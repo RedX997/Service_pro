@@ -33,6 +33,7 @@ export function initializeSocket(httpServer: HTTPServer): SocketIOServer {
           /^https:\/\/.*\.vercel\.app$/,
           /^https:\/\/.*\.pages\.dev$/,
           /^https:\/\/.*\.netlify\.app$/,
+          /^https:\/\/.*\.railway\.app$/,
           /^file:\/\//
         ];
 

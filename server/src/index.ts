@@ -61,6 +61,7 @@ app.use(cors({
       /^https:\/\/.*\.vercel\.app$/,
       /^https:\/\/.*\.pages\.dev$/,
       /^https:\/\/.*\.netlify\.app$/,
+      /^https:\/\/.*\.railway\.app$/,
       /^file:\/\//  // Allow file:// protocol for local HTML files
     ];
     
